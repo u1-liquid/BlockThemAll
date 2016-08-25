@@ -8,9 +8,8 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Windows.Forms;
-using IniParser;
-using IniParser.Model;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -23,8 +22,8 @@ namespace BlockThemAll
 
         private static void Main()
         {
-            Log.Init();
-            INIParser setting = new INIParser(ini_file);
+            IniSettings setting = new IniSettings(new FileInfo(ini_file));
+            
             string AuthData = "Authenticate";
             string consumerKey = setting.GetValue(AuthData, "ConsumerKey");
             string consumerSecret = setting.GetValue(AuthData, "ConsumerSecret");
@@ -32,7 +31,7 @@ namespace BlockThemAll
             string accessSecret = setting.GetValue(AuthData, "AccessSecret");
             if (string.IsNullOrWhiteSpace(consumerKey) || string.IsNullOrWhiteSpace(consumerSecret))
             {
-                Log.Error("Program", "Unable to get consumerKey / Secret. Please check config file.");
+                Console.WriteLine("Unable to get consumerKey / Secret. Please check config file.");
                 if (string.IsNullOrWhiteSpace(consumerKey)) setting.SetValue(AuthData, "ConsumerKey", "");
                 if (string.IsNullOrWhiteSpace(consumerSecret)) setting.SetValue(AuthData, "ConsumerSecret", "");
                 if (string.IsNullOrWhiteSpace(accessToken)) setting.SetValue(AuthData, "AccessToken", "");
@@ -91,6 +90,7 @@ namespace BlockThemAll
                 oAuth = new OAuth(consumerKey, consumerSecret, accessToken, accessSecret);
             }
 
+            string readLine = string.Empty;
             if (oAuth.User.Token != null)
             {
                 List<string> whitelist = new List<string>();
@@ -124,16 +124,28 @@ namespace BlockThemAll
                     }
 
                     whitelist = whitelist.Distinct().ToList();
-
-                    Console.WriteLine("Get My Block List... (Max 250000)");
-                    result = JsonConvert.DeserializeObject<UserIdsObject>(getMyBlockList("-1"));
-                    while (result != null)
+                    
+                    Console.Write("Do you have backup of blocklist? (Y/N)");
+                    readLine = Console.ReadLine();
+                    if ((readLine != null) && readLine.ToUpper().Trim().Equals("Y"))
                     {
-                        blocklist.AddRange(result.ids);
-                        if (result.next_cursor != 0)
-                            result = JsonConvert.DeserializeObject<UserIdsObject>(getMyBlockList(result.next_cursor_str));
-                        else
-                            break;
+                        Console.Write("Enter path of your blocklist\n: ");
+                        string input = Console.ReadLine();
+                        if (input != null && File.Exists(input.Replace("\"", "")))
+                            blocklist.AddRange(File.ReadAllText(input.Replace("\"", "")).Split(','));
+                    }
+                    else
+                    {
+                        Console.WriteLine("Get My Block List... (Max 250000 per 15min)");
+                        result = JsonConvert.DeserializeObject<UserIdsObject>(getMyBlockList("-1"));
+                        while (result != null)
+                        {
+                            blocklist.AddRange(result.ids);
+                            if (result.next_cursor != 0)
+                                result = JsonConvert.DeserializeObject<UserIdsObject>(getMyBlockList(result.next_cursor_str));
+                            else
+                                break;
+                        }
                     }
                 }
                 else
@@ -233,10 +245,15 @@ namespace BlockThemAll
                     }
 
                     Console.Write("Finished ! Do you want continue? (Y/N) : ");
-                    string readLine = Console.ReadLine();
+                    readLine = Console.ReadLine();
                     if ((readLine != null) && readLine.ToUpper().Trim().Equals("N"))
                         break;
                 }
+
+                Console.Write("Do you want export your block list? (Y/N) : ");
+                readLine = Console.ReadLine();
+                if ((readLine != null) && readLine.ToUpper().Trim().Equals("Y"))
+                    File.WriteAllText("blocklist_" + DateTime.Now.ToString("yyyy-MM-dd_HHmm") + ".csv", string.Join(",", blocklist));
             }
         }
 
@@ -344,7 +361,22 @@ namespace BlockThemAll
                 Stream resStream = ex.Response.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88"))
+                    {
+                        Console.Write("Do you want retry get block list after 15min? (Y/N)");
+                        string readLine = Console.ReadLine();
+                        if ((readLine != null) && readLine.ToUpper().Trim().Equals("N"))
+                            return json.ToString();
+
+                        Console.WriteLine("Wait for 15min... The job will be resumed at : " + DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
+                        Thread.Sleep(15 * 60 * 1000);
+                        return getMyBlockList(cursor);
+                    }
+                }   
             }
 
             return json.ToString();
@@ -471,457 +503,5 @@ namespace BlockThemAll
             public string id_str { get; set; }
             public string screen_name { get; set; }
         }
-
-        public class OAuth
-        {
-            private static readonly string[] oauth_array =
-            {
-                "oauth_consumer_key", "oauth_version", "oauth_nonce", "oauth_signature",
-                "oauth_signature_method", "oauth_timestamp", "oauth_token", "oauth_callback"
-            };
-
-            private static readonly DateTime GenerateTimeStampDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0);
-
-            static OAuth()
-            {
-                ServicePointManager.Expect100Continue = false;
-            }
-
-            public OAuth(string appToken, string appSecret)
-                : this(appToken, appSecret, null, null) {}
-
-            public OAuth(string appToken, string appSecret, string userToken, string userSecret)
-            {
-                App = new TokenPair(appToken, appSecret);
-                User = new TokenPair(userToken, userSecret);
-            }
-
-            public TokenPair App { get; }
-            public TokenPair User { get; }
-
-            public WebRequest MakeRequest(string method, string url, object data = null)
-            {
-                method = method.ToUpper();
-                Uri uri = new Uri(url);
-                SortedDictionary<string, object> dic = new SortedDictionary<string, object>();
-
-                if (!string.IsNullOrWhiteSpace(uri.Query))
-                    AddDictionary(dic, uri.Query);
-
-                if (data != null)
-                    AddDictionary(dic, data);
-
-                if (!string.IsNullOrWhiteSpace(User.Token))
-                    dic.Add("oauth_token", UrlEncode(User.Token));
-
-                dic.Add("oauth_consumer_key", UrlEncode(App.Token));
-                dic.Add("oauth_nonce", GetNonce());
-                dic.Add("oauth_timestamp", GetTimeStamp());
-                dic.Add("oauth_signature_method", "HMAC-SHA1");
-                dic.Add("oauth_version", "1.0");
-
-                string hashKey = $"{UrlEncode(App.Secret)}&{(User.Secret == null ? null : UrlEncode(User.Secret))}";
-                string hashData =
-                    $"{method.ToUpper()}&{UrlEncode($"{uri.Scheme}{Uri.SchemeDelimiter}{uri.Host}{uri.AbsolutePath}")}&{UrlEncode(ToString(dic))}";
-
-                using (HMACSHA1 hash = new HMACSHA1(Encoding.UTF8.GetBytes(hashKey)))
-                    dic.Add("oauth_signature", UrlEncode(Convert.ToBase64String(hash.ComputeHash(Encoding.UTF8.GetBytes(hashData)))));
-
-                StringBuilder sbData = new StringBuilder();
-                sbData.Append("OAuth ");
-                foreach (KeyValuePair<string, object> st in dic)
-                    if (Array.IndexOf(oauth_array, st.Key) >= 0)
-                        sbData.AppendFormat("{0}=\"{1}\",", st.Key, Convert.ToString(st.Value));
-                sbData.Remove(sbData.Length - 1, 1);
-
-                HttpWebRequest req = (HttpWebRequest) WebRequest.Create(uri);
-                req.Method = method;
-                req.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
-                req.UserAgent = "Twitter Client";
-                req.Headers.Add("Authorization", sbData.ToString());
-
-                if (method == "POST")
-                    req.ContentType = "application/x-www-form-urlencoded";
-
-                return req;
-            }
-
-            private static string GetNonce()
-            {
-                return Guid.NewGuid().ToString("N");
-            }
-
-            private static string GetTimeStamp()
-            {
-                return Convert.ToInt64((DateTime.UtcNow - GenerateTimeStampDateTime).TotalSeconds).ToString();
-            }
-
-            private static string UrlEncode(string str)
-            {
-                string uriData = Uri.EscapeDataString(str);
-                StringBuilder sb = new StringBuilder(uriData.Length);
-
-                foreach (char t in uriData)
-                    switch (t)
-                    {
-                        case '!':
-                            sb.Append("%21");
-                            break;
-                        case '*':
-                            sb.Append("%2A");
-                            break;
-                        case '\'':
-                            sb.Append("%5C");
-                            break;
-                        case '(':
-                            sb.Append("%28");
-                            break;
-                        case ')':
-                            sb.Append("%29");
-                            break;
-                        default:
-                            sb.Append(t);
-                            break;
-                    }
-
-                return sb.ToString();
-            }
-
-            private static string ToString(IDictionary<string, object> dic)
-            {
-                if (dic == null) return null;
-
-                StringBuilder sb = new StringBuilder();
-
-                if (dic.Count > 0)
-                {
-                    foreach (KeyValuePair<string, object> st in dic)
-                        if (st.Value is bool)
-                            sb.AppendFormat("{0}={1}&", st.Key, (bool) st.Value ? "true" : "false");
-                        else
-                            sb.AppendFormat("{0}={1}&", st.Key, Convert.ToString(st.Value));
-
-                    if (sb.Length > 0)
-                        sb.Remove(sb.Length - 1, 1);
-                }
-
-                return sb.ToString();
-            }
-
-            public static string ToString(object values)
-            {
-                if (values == null) return null;
-
-                StringBuilder sb = new StringBuilder();
-
-                foreach (PropertyInfo p in values.GetType().GetProperties())
-                {
-                    if (!p.CanRead) continue;
-
-                    string name = p.Name;
-                    object value = p.GetValue(values, null);
-
-                    if (value is bool)
-                        sb.AppendFormat("{0}={1}&", name, (bool) value ? "true" : "false");
-                    else
-                        sb.AppendFormat("{0}={1}&", name, UrlEncode(Convert.ToString(value)));
-                }
-
-                if (sb.Length > 0)
-                    sb.Remove(sb.Length - 1, 1);
-
-                return sb.ToString();
-            }
-
-            private static void AddDictionary(IDictionary<string, object> dic, string query)
-            {
-                if ((query != null) && (!string.IsNullOrWhiteSpace(query) || (query.Length > 1)))
-                {
-                    int read = 0;
-
-                    if (query[0] == '?')
-                        read = 1;
-
-                    while (read < query.Length)
-                    {
-                        int find = query.IndexOf('=', read);
-                        string key = query.Substring(read, find - read);
-                        read = find + 1;
-
-                        find = query.IndexOf('&', read);
-                        string val;
-                        if (find > 0)
-                        {
-                            val = find - read == 1 ? null : query.Substring(read, find - read);
-
-                            read = find + 1;
-                        }
-                        else
-                        {
-                            val = query.Substring(read);
-
-                            read = query.Length;
-                        }
-
-                        dic[key] = val;
-                    }
-                }
-            }
-
-            private static void AddDictionary(IDictionary<string, object> dic, object values)
-            {
-                foreach (PropertyInfo p in values.GetType().GetProperties())
-                {
-                    if (!p.CanRead) continue;
-                    object value = p.GetValue(values, null);
-
-                    if (value is bool)
-                        dic[p.Name] = (bool) value ? "true" : "false";
-                    else
-                        dic[p.Name] = UrlEncode(Convert.ToString(value));
-                }
-            }
-
-            public TokenPair RequestToken()
-            {
-                try
-                {
-                    WebRequest req = MakeRequest("POST", "https://api.twitter.com/oauth/request_token");
-                    Stream resStream = req.GetResponse().GetResponseStream();
-                    if (resStream != null)
-                        using (StreamReader reader = new StreamReader(resStream))
-                        {
-                            string str = reader.ReadToEnd();
-
-                            TokenPair token = new TokenPair
-                            {
-                                Token = Regex.Match(str, @"oauth_token=([^&]+)").Groups[1].Value,
-                                Secret = Regex.Match(str, @"oauth_token_secret=([^&]+)").Groups[1].Value
-                            };
-
-                            return token;
-                        }
-                    return null;
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-
-            public TokenPair AccessToken(string verifier)
-            {
-                try
-                {
-                    var obj = new {oauth_verifier = verifier};
-                    byte[] buff = Encoding.UTF8.GetBytes(ToString(obj));
-
-                    WebRequest req = MakeRequest("POST", "https://api.twitter.com/oauth/access_token", obj);
-                    req.GetRequestStream().Write(buff, 0, buff.Length);
-
-                    Stream resStream = req.GetResponse().GetResponseStream();
-                    if (resStream != null)
-                        using (StreamReader reader = new StreamReader(resStream))
-                        {
-                            string str = reader.ReadToEnd();
-
-                            TokenPair token = new TokenPair
-                            {
-                                Token = Regex.Match(str, @"oauth_token=([^&]+)").Groups[1].Value,
-                                Secret = Regex.Match(str, @"oauth_token_secret=([^&]+)").Groups[1].Value
-                            };
-
-                            return token;
-                        }
-                    return null;
-                }
-                catch
-                {
-                    return null;
-                }
-            }
-
-            public class TokenPair
-            {
-                public TokenPair() {}
-
-                public TokenPair(string token, string secret)
-                {
-                    Token = token;
-                    Secret = secret;
-                }
-
-                public string Token { get; set; }
-                public string Secret { get; set; }
-            }
-        }
-    }
-
-    public class Log
-    {
-        public static bool IsInited { get; private set; }
-
-        public static void Init()
-        {
-            try
-            {
-                IsInited = true;
-                Trace.Listeners.Add(new TextWriterTraceListener(Console.Out));
-                Trace.AutoFlush = true;
-            }
-            catch
-            {
-                IsInited = false;
-            }
-        }
-
-        public static void Print(string tag, string message)
-        {
-            Console.ForegroundColor = ConsoleColor.White;
-            Output(tag, message);
-        }
-
-        public static void Http(string tag, string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Cyan;
-            Output(tag, message);
-        }
-
-        public static void Debug(string tag, string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Green;
-            Output(tag, message);
-        }
-
-        public static void Warning(string tag, string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            Output(tag, message);
-        }
-
-        public static void Error(string tag, string message)
-        {
-            Console.ForegroundColor = ConsoleColor.Red;
-            Output(tag, message);
-        }
-
-        private static void Output(string tag, string message)
-        {
-            string log = $"{tag} : {message}";
-            if (IsInited)
-                Trace.WriteLine(log);
-            else
-                Console.WriteLine(log);
-        }
-
-        public static void StackTrace()
-        {
-            Console.ForegroundColor = ConsoleColor.Yellow;
-            if (IsInited)
-                Trace.Write(new StackTrace(true));
-            else
-                Console.WriteLine("Inflate stacktrace() : \n{0}", new StackTrace(true));
-        }
-
-        public static void Indent()
-        {
-            if (!IsInited) return;
-            Trace.Indent();
-        }
-
-        public static void Unindent()
-        {
-            if (!IsInited) return;
-            Trace.Unindent();
-        }
-    }
-
-    public class INIParser
-    {
-        private readonly IniData data;
-        private readonly string iniPath;
-
-        public INIParser(string path)
-        {
-            iniPath = path;
-            if (File.Exists(iniPath))
-            {
-                data = new FileIniDataParser().ReadFile(iniPath);
-                string @out = $"Read INI - [{iniPath}]";
-                foreach (SectionData section in data.Sections)
-                {
-                    @out += $"\n    [{section.SectionName}]";
-                    foreach (KeyData key in section.Keys)
-                        @out += $"\n        {key.KeyName} = {data[section.SectionName][key.KeyName]}";
-                }
-                Log.Debug("INIParser", @out);
-            }
-            else
-            {
-                Log.Error("INIParser", $"[{iniPath}] is not correct directory. new inidata generated.");
-                data = new IniData();
-            }
-        }
-
-        public string GetValue(string Section, string Key)
-        {
-            try
-            {
-                return data[Section][Key];
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        public void SetValue(string Section, string Key, object Value)
-        {
-            if (!data.Sections.ContainsSection(Section)) data.Sections.AddSection(Section);
-            if (!data[Section].ContainsKey(Key)) data[Section].AddKey(Key);
-
-            data[Section][Key] = Value.ToString();
-        }
-
-        internal void Save()
-        {
-            new FileIniDataParser().WriteFile(iniPath, data, Encoding.UTF8);
-        }
-
-        #region WINApi
-
-        //[DllImport( "kernel32.dll" )]
-        //private static extern int GetPrivateProfileString(
-        //	String section,
-        //	String key,
-        //	String def,
-        //	StringBuilder retVal,
-        //	int size,
-        //	String filePath );
-
-        //[DllImport( "kernel32.dll" )]
-        //private static extern long WritePrivateProfileString(
-        //	String section,
-        //	String key,
-        //	String val,
-        //	String filePath );
-
-        //public String GetValue( String Section, String Key )
-        //{
-        //	StringBuilder temp = new StringBuilder(255);
-        //	int i = GetPrivateProfileString(Section, Key, "", temp, 255, iniPath);
-        //	return temp.ToString( );
-        //}
-
-        //public void SetValue( String Section, String Key, String Value )
-        //{
-        //	WritePrivateProfileString( Section, Key, Value, iniPath );
-        //}
-
-        #endregion
-
-        #region FileIniDataParser
-
-        #endregion
     }
 }
