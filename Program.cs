@@ -101,6 +101,8 @@ namespace BlockThemAll
                     {
                         List<string> targetLists = new List<string>();
 
+                        if (string.IsNullOrWhiteSpace(target)) continue;
+
                         if (target.StartsWith("@"))
                         {
                             string username = target.Substring(1);
