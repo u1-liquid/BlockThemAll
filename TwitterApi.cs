@@ -13,6 +13,9 @@ namespace BlockThemAll
 {
     internal static class TwitterApi
     {
+        private static bool AutoWaitForBlockList;
+        private static bool AutoWaitForMuteList;
+
         public static TwitterOAuth TwitterOAuth { get; internal set; }
 
         public static TwitterOAuth Login(IniSettings setting)
@@ -194,18 +197,21 @@ namespace BlockThemAll
                     string response = reader.ReadToEnd();
                     Console.WriteLine(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88"))
+                    if (!Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) return json.ToString();
+                    if (!AutoWaitForBlockList)
                     {
-                        Console.Write("Do you want retry get block list after 15min? (Y/N)");
+                        Console.Write("Do you want retry get block list after 15min? (Yes/No/Auto)");
                         string readLine = Console.ReadLine();
-                        if ((readLine != null) && readLine.ToUpper().Trim().Equals("N"))
+                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("N"))
                             return json.ToString();
-
-                        Console.WriteLine("Wait for 15min... The job will be resumed at : " +
-                                          DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
-                        Thread.Sleep(15 * 60 * 1000);
-                        return getMyBlockList(cursor);
+                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("A"))
+                            AutoWaitForBlockList = true;
                     }
+
+                    Console.WriteLine("Wait for 15min... The job will be resumed at : " +
+                                      DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
+                    Thread.Sleep(15 * 60 * 1000);
+                    return getMyBlockList(cursor);
                 }
             }
 
@@ -234,18 +240,21 @@ namespace BlockThemAll
                     string response = reader.ReadToEnd();
                     Console.WriteLine(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88"))
+                    if (!Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) return json.ToString();
+                    if (!AutoWaitForMuteList)
                     {
-                        Console.Write("Do you want retry get mute list after 15min? (Y/N)");
+                        Console.Write("Do you want retry get mute list after 15min? (Yes/No/Auto)");
                         string readLine = Console.ReadLine();
-                        if ((readLine != null) && readLine.ToUpper().Trim().Equals("N"))
+                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("N"))
                             return json.ToString();
-
-                        Console.WriteLine("Wait for 15min... The job will be resumed at : " +
-                                          DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
-                        Thread.Sleep(15 * 60 * 1000);
-                        return getMyBlockList(cursor);
+                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("A"))
+                            AutoWaitForMuteList = true;
                     }
+
+                    Console.WriteLine("Wait for 15min... The job will be resumed at : " +
+                                      DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
+                    Thread.Sleep(15 * 60 * 1000);
+                    return getMyBlockList(cursor);
                 }
             }
 
