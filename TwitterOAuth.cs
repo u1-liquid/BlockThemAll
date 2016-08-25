@@ -9,25 +9,25 @@ using System.Text.RegularExpressions;
 
 namespace BlockThemAll
 {
-    public class OAuth
+    public class TwitterOAuth
     {
         private static readonly string[] oauth_array =
         {
-                "oauth_consumer_key", "oauth_version", "oauth_nonce", "oauth_signature",
-                "oauth_signature_method", "oauth_timestamp", "oauth_token", "oauth_callback"
-            };
+            "oauth_consumer_key", "oauth_version", "oauth_nonce", "oauth_signature",
+            "oauth_signature_method", "oauth_timestamp", "oauth_token", "oauth_callback"
+        };
 
         private static readonly DateTime GenerateTimeStampDateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0);
 
-        static OAuth()
+        static TwitterOAuth()
         {
             ServicePointManager.Expect100Continue = false;
         }
 
-        public OAuth(string appToken, string appSecret)
-            : this(appToken, appSecret, null, null) { }
+        public TwitterOAuth(string appToken, string appSecret)
+            : this(appToken, appSecret, null, null) {}
 
-        public OAuth(string appToken, string appSecret, string userToken, string userSecret)
+        public TwitterOAuth(string appToken, string appSecret, string userToken, string userSecret)
         {
             App = new TokenPair(appToken, appSecret);
             User = new TokenPair(userToken, userSecret);
@@ -71,7 +71,7 @@ namespace BlockThemAll
                     sbData.AppendFormat("{0}=\"{1}\",", st.Key, Convert.ToString(st.Value));
             sbData.Remove(sbData.Length - 1, 1);
 
-            HttpWebRequest req = (HttpWebRequest)WebRequest.Create(uri);
+            HttpWebRequest req = (HttpWebRequest) WebRequest.Create(uri);
             req.Method = method;
             req.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
             req.UserAgent = "Twitter Client";
@@ -134,7 +134,7 @@ namespace BlockThemAll
             {
                 foreach (KeyValuePair<string, object> st in dic)
                     if (st.Value is bool)
-                        sb.AppendFormat("{0}={1}&", st.Key, (bool)st.Value ? "true" : "false");
+                        sb.AppendFormat("{0}={1}&", st.Key, (bool) st.Value ? "true" : "false");
                     else
                         sb.AppendFormat("{0}={1}&", st.Key, Convert.ToString(st.Value));
 
@@ -159,7 +159,7 @@ namespace BlockThemAll
                 object value = p.GetValue(values, null);
 
                 if (value is bool)
-                    sb.AppendFormat("{0}={1}&", name, (bool)value ? "true" : "false");
+                    sb.AppendFormat("{0}={1}&", name, (bool) value ? "true" : "false");
                 else
                     sb.AppendFormat("{0}={1}&", name, UrlEncode(Convert.ToString(value)));
             }
@@ -213,7 +213,7 @@ namespace BlockThemAll
                 object value = p.GetValue(values, null);
 
                 if (value is bool)
-                    dic[p.Name] = (bool)value ? "true" : "false";
+                    dic[p.Name] = (bool) value ? "true" : "false";
                 else
                     dic[p.Name] = UrlEncode(Convert.ToString(value));
             }
@@ -250,7 +250,7 @@ namespace BlockThemAll
         {
             try
             {
-                var obj = new { oauth_verifier = verifier };
+                var obj = new {oauth_verifier = verifier};
                 byte[] buff = Encoding.UTF8.GetBytes(ToString(obj));
 
                 WebRequest req = MakeRequest("POST", "https://api.twitter.com/oauth/access_token", obj);
@@ -280,7 +280,7 @@ namespace BlockThemAll
 
         public class TokenPair
         {
-            public TokenPair() { }
+            public TokenPair() {}
 
             public TokenPair(string token, string secret)
             {

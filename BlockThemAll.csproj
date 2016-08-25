@@ -48,7 +48,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="OAuth.cs" />
+    <Compile Include="TwitterApi.cs" />
+    <Compile Include="TwitterOAuth.cs" />
     <Compile Include="IniSettings.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

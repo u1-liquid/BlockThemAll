@@ -6,7 +6,7 @@ using System.Text.RegularExpressions;
 
 namespace BlockThemAll
 {
-    class IniSettings
+    internal class IniSettings
     {
         private readonly FileInfo ini;
         private readonly Dictionary<string, Dictionary<string, string>> settings = new Dictionary<string, Dictionary<string, string>>();
@@ -67,7 +67,8 @@ namespace BlockThemAll
             foreach (KeyValuePair<string, Dictionary<string, string>> sections in settings)
             {
                 text += @"[" + sections.Key + @"]" + Environment.NewLine;
-                text = sections.Value.Aggregate(text, (current, config) => current + (config.Key + @" = " + config.Value + Environment.NewLine));
+                text = sections.Value.Aggregate(text,
+                    (current, config) => current + config.Key + @" = " + config.Value + Environment.NewLine);
             }
 
             File.WriteAllText(ini.Name, text);
