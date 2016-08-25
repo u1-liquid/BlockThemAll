@@ -4,8 +4,6 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
-using System.Reflection;
-using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -19,7 +17,7 @@ namespace BlockThemAll
     {
         public static string ini_file = "BlockThemAll.ini";
         public static OAuth oAuth { get; private set; }
-
+        [STAThread]
         private static void Main()
         {
             IniSettings setting = new IniSettings(new FileInfo(ini_file));
@@ -90,7 +88,6 @@ namespace BlockThemAll
                 oAuth = new OAuth(consumerKey, consumerSecret, accessToken, accessSecret);
             }
 
-            string readLine = string.Empty;
             if (oAuth.User.Token != null)
             {
                 List<string> whitelist = new List<string>();
@@ -99,6 +96,7 @@ namespace BlockThemAll
                 Console.WriteLine("Loading login info...");
                 string myId = getMyId();
 
+                string readLine;
                 if (!string.IsNullOrEmpty(myId))
                 {
                     Console.WriteLine("Get My Friends...");
