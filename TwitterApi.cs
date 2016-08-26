@@ -385,7 +385,7 @@ namespace BlockThemAll
 
         public static string Mute(string id)
         {
-            Console.Write("Mute user : " + id);
+            Console.WriteLine("Mute user : " + id);
             object obj = new {user_id = id};
 
             try
@@ -415,7 +415,7 @@ namespace BlockThemAll
 
         public static string UnMute(string id)
         {
-            Console.Write("UnMute user : " + id);
+            Console.WriteLine("UnMute user : " + id);
             object obj = new {user_id = id};
 
             try
