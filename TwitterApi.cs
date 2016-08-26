@@ -165,7 +165,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
                     Console.WriteLine(reader.ReadToEnd());
@@ -190,7 +190,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
                 {
@@ -233,7 +233,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
                 {
@@ -278,7 +278,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
                     Console.WriteLine(reader.ReadToEnd());
@@ -306,7 +306,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
                     Console.WriteLine(reader.ReadToEnd());
@@ -340,7 +340,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream != null)
                     using (StreamReader reader = new StreamReader(resStream))
                         Console.WriteLine(reader.ReadToEnd());
@@ -374,7 +374,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream != null)
                     using (StreamReader reader = new StreamReader(resStream))
                         Console.WriteLine(reader.ReadToEnd());
@@ -404,7 +404,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream != null)
                     using (StreamReader reader = new StreamReader(resStream))
                         Console.WriteLine(reader.ReadToEnd());
@@ -434,7 +434,7 @@ namespace BlockThemAll
             }
             catch (WebException ex)
             {
-                Stream resStream = ex.Response.GetResponseStream();
+                Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream != null)
                     using (StreamReader reader = new StreamReader(resStream))
                         Console.WriteLine(reader.ReadToEnd());
