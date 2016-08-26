@@ -30,7 +30,7 @@ namespace BlockThemAll
                     else
                     {
                         string[] s = line.Split('=');
-                        if (s.Length != 2) continue;
+                        if (s.Length < 2) continue;
                         if (string.IsNullOrEmpty(section))
                         {
                             section = @"Default";
@@ -38,7 +38,7 @@ namespace BlockThemAll
                                 settings.Add(section, new Dictionary<string, string>());
                         }
 
-                        settings[section].Add(s[0].Trim(), s[1].Trim());
+                        settings[section].Add(s[0].Trim(), string.Join("=", s, 1, s.Length - 1).Trim());
                     }
                 }
             }
