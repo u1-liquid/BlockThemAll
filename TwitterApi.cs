@@ -32,37 +32,38 @@ namespace BlockThemAll
                 Console.ReadKey(true);
                 return null;
             }
-            if (string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(accessSecret))
+
+            if (!string.IsNullOrWhiteSpace(accessToken) && !string.IsNullOrWhiteSpace(accessSecret))
+                return TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
+
+            TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret);
+            TwitterOAuth.TokenPair tokens = TwitterOAuth.RequestToken();
+            string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
+            try
             {
-                TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret);
-                TwitterOAuth.TokenPair tokens = TwitterOAuth.RequestToken();
-                var authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
-                try
-                {
-                    using (Process.Start("explorer", authorizationUrlString)) {}
-                }
-                catch
-                {
-                    Console.WriteLine("Failed to open web browser.\nYou have to access manually this url:\n{0}", authorizationUrlString);
-                }
-
-                string verifier;
-
-                do
-                {
-                    Console.Write("Please input verifier code : ");
-                    verifier = Console.ReadLine();
-                } while (string.IsNullOrWhiteSpace(verifier));
-
-                tokens = TwitterOAuth.AccessToken(verifier);
-
-                if (tokens != null)
-                {
-                    setting.SetValue(AuthData, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
-                    setting.SetValue(AuthData, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
-                    setting.Save();
-                }
+                using (Process.Start("explorer", authorizationUrlString)) {}
             }
+            catch
+            {
+                Console.WriteLine($"Failed to open web browser.\nYou have to access manually this url:\n{authorizationUrlString}");
+            }
+
+            string verifier;
+
+            do
+            {
+                Console.Write("Please input verifier code : ");
+                verifier = Console.ReadLine();
+            } while (string.IsNullOrWhiteSpace(verifier));
+
+            tokens = TwitterOAuth.AccessToken(verifier);
+
+            if (tokens == null) return TwitterOAuth = null;
+
+            setting.SetValue(AuthData, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
+            setting.SetValue(AuthData, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
+            setting.Save();
+
             return TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
         }
 
@@ -180,7 +181,8 @@ namespace BlockThemAll
                     {
                         Console.Write("Do you want retry get block list after 15min? (Yes/No/Auto)");
                         string readLine = Console.ReadLine();
-                        if (readLine != null) {
+                        if (readLine != null)
+                        {
                             if (readLine.ToUpper().Trim().StartsWith("N"))
                                 return json.ToString();
                             if (readLine.ToUpper().Trim().StartsWith("A"))
@@ -225,7 +227,8 @@ namespace BlockThemAll
                     {
                         Console.Write("Do you want retry get mute list after 15min? (Yes/No/Auto)");
                         string readLine = Console.ReadLine();
-                        if (readLine != null) {
+                        if (readLine != null)
+                        {
                             if (readLine.ToUpper().Trim().StartsWith("N"))
                                 return json.ToString();
                             if (readLine.ToUpper().Trim().StartsWith("A"))

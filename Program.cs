@@ -15,7 +15,7 @@ namespace BlockThemAll
         private static void Main()
         {
             TwitterApi.Login(new IniSettings(new FileInfo(ini_file)));
-            if (TwitterApi.TwitterOAuth == null || TwitterApi.TwitterOAuth.User.Token == null) return;
+            if ((TwitterApi.TwitterOAuth == null) || (TwitterApi.TwitterOAuth.User.Token == null)) return;
 
             HashSet<string> whitelist = new HashSet<string>();
             HashSet<string> blocklist = new HashSet<string>();
@@ -90,7 +90,7 @@ namespace BlockThemAll
                     Console.WriteLine("Please check your input is correct!");
                     if (DialogResult.No ==
                         MessageBox.Show(
-                            string.Join("\n \n", new[] {"Please check your input is correct. ", string.Join("\n", targets), " Press Yes to go."}),
+                            string.Join("\n \n", "Please check your input is correct. ", string.Join("\n", targets), " Press Yes to go."),
                             "Check your input is correct",
                             MessageBoxButtons.YesNo, MessageBoxIcon.Question)) continue;
 
@@ -111,12 +111,11 @@ namespace BlockThemAll
                                 while (result != null)
                                 {
                                     targetLists.AddRange(result.ids);
-                                    if (result.next_cursor != 0)
-                                        result =
-                                            JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getFollowers(username,
-                                                result.next_cursor_str));
-                                    else
+                                    if (result.next_cursor == 0)
                                         break;
+                                    result =
+                                        JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getFollowers(username,
+                                            result.next_cursor_str));
                                 }
 
                                 blocklist.Add(TwitterApi.Block(username, true));
@@ -172,7 +171,7 @@ namespace BlockThemAll
             Console.Write("Do you want export your block list? (Y/N) : ");
             readLine = Console.ReadLine();
             if ((readLine != null) && readLine.ToUpper().Trim().Equals("Y"))
-                File.WriteAllText(string.Format("blocklist_{0:yyyy-MM-dd_HHmm}.csv", DateTime.Now.ToString("")), string.Join(",", blocklist));
+                File.WriteAllText($"blocklist_{DateTime.Now:yyyy-MM-dd_HHmm}.csv", string.Join(",", blocklist));
         }
     }
 }
