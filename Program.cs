@@ -108,7 +108,7 @@ namespace BlockThemAll
                             if (!string.IsNullOrWhiteSpace(json))
                             {
                                 UserIdsObject result = JsonConvert.DeserializeObject<UserIdsObject>(json);
-                                while (true)
+                                while (result != null)
                                 {
                                     targetLists.AddRange(result.ids);
                                     if (result.next_cursor != 0)
@@ -154,13 +154,11 @@ namespace BlockThemAll
                         foreach (string s in targetLists)
                         {
                             count++;
-                            if (!whitelist.Contains(s) && !blocklist.Contains(s))
-                            {
-                                blocklist.Add(TwitterApi.Block(s));
-                                Console.WriteLine("Target = {0}, Progress = {1}/{2} ({3:%#0.00}%), Blocklist = {4}",
-                                    target.Length < 18 ? target : target.Substring(0, 17) + "...", count,
-                                    targetLists.Count, count / (double)targetLists.Count, blocklist.Count);
-                            }
+                            if (whitelist.Contains(s) || blocklist.Contains(s)) continue;
+                            blocklist.Add(TwitterApi.Block(s));
+                            Console.WriteLine("Target = {0}, Progress = {1}/{2} ({3}%), Blocklist = {4}",
+                                target.Length < 18 ? target : target.Substring(0, 17) + "...", count,
+                                targetLists.Count, Math.Round(count * 100 / (double) targetLists.Count, 2), blocklist.Count);
                         }
                     }
                 }
