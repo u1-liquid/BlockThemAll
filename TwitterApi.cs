@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Runtime.Serialization;
+using System.Security.Permissions;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -13,18 +14,16 @@ namespace BlockThemAll
 {
     internal static class TwitterApi
     {
-        private static bool AutoWaitForBlockList;
-        private static bool AutoWaitForMuteList;
-
         public static TwitterOAuth TwitterOAuth { get; internal set; }
 
-        public static TwitterOAuth Login(IniSettings setting)
+        public static TwitterOAuth Login(IniSettings setting) => Login(setting, "Authenticate");
+
+        public static TwitterOAuth Login(IniSettings setting, string section)
         {
-            string AuthData = "Authenticate";
-            string consumerKey = setting.GetValue(AuthData, "ConsumerKey", string.Empty);
-            string consumerSecret = setting.GetValue(AuthData, "ConsumerSecret", string.Empty);
-            string accessToken = setting.GetValue(AuthData, "AccessToken", string.Empty);
-            string accessSecret = setting.GetValue(AuthData, "AccessSecret", string.Empty);
+            string consumerKey = setting.GetValue(section, "ConsumerKey", string.Empty) as string;
+            string consumerSecret = setting.GetValue(section, "ConsumerSecret", string.Empty) as string;
+            string accessToken = setting.GetValue(section, "AccessToken", string.Empty) as string;
+            string accessSecret = setting.GetValue(section, "AccessSecret", string.Empty) as string;
             if (string.IsNullOrWhiteSpace(consumerKey) || string.IsNullOrWhiteSpace(consumerSecret))
             {
                 setting.Save();
@@ -60,8 +59,8 @@ namespace BlockThemAll
 
             if (tokens == null) return TwitterOAuth = null;
 
-            setting.SetValue(AuthData, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
-            setting.SetValue(AuthData, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
+            setting.SetValue(section, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
+            setting.SetValue(section, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
             setting.Save();
 
             return TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
@@ -122,7 +121,12 @@ namespace BlockThemAll
                 Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id, cursor = cursor};
+                }
             }
 
             return json.ToString();
@@ -147,7 +151,12 @@ namespace BlockThemAll
                 Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id, cursor = cursor};
+                }
             }
 
             return json.ToString();
@@ -176,24 +185,7 @@ namespace BlockThemAll
                     string response = reader.ReadToEnd();
                     Console.WriteLine(response);
 
-                    if (!Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) return json.ToString();
-                    if (!AutoWaitForBlockList)
-                    {
-                        Console.Write("Do you want retry get block list after 15min? (Yes/No/Auto)");
-                        string readLine = Console.ReadLine();
-                        if (readLine != null)
-                        {
-                            if (readLine.ToUpper().Trim().StartsWith("N"))
-                                return json.ToString();
-                            if (readLine.ToUpper().Trim().StartsWith("A"))
-                                AutoWaitForBlockList = true;
-                        }
-                    }
-
-                    Console.WriteLine("Wait for 15min... The job will be resumed at : " +
-                                      DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
-                    Thread.Sleep(15 * 60 * 1000);
-                    return getMyBlockList(cursor);
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {cursor = cursor};
                 }
             }
 
@@ -222,24 +214,7 @@ namespace BlockThemAll
                     string response = reader.ReadToEnd();
                     Console.WriteLine(response);
 
-                    if (!Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) return json.ToString();
-                    if (!AutoWaitForMuteList)
-                    {
-                        Console.Write("Do you want retry get mute list after 15min? (Yes/No/Auto)");
-                        string readLine = Console.ReadLine();
-                        if (readLine != null)
-                        {
-                            if (readLine.ToUpper().Trim().StartsWith("N"))
-                                return json.ToString();
-                            if (readLine.ToUpper().Trim().StartsWith("A"))
-                                AutoWaitForMuteList = true;
-                        }
-                    }
-
-                    Console.WriteLine("Wait for 15min... The job will be resumed at : " +
-                                      DateTime.Now.AddMinutes(15).ToString("hh:mm:ss"));
-                    Thread.Sleep(15 * 60 * 1000);
-                    return getMyBlockList(cursor);
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {cursor = cursor};
                 }
             }
 
@@ -266,7 +241,13 @@ namespace BlockThemAll
                 Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88"))
+                        throw new RateLimitException {target = username, cursor = cursor};
+                }
             }
 
             return json.ToString();
@@ -294,7 +275,12 @@ namespace BlockThemAll
                 Stream resStream = ex.Response?.GetResponseStream();
                 if (resStream == null) return json.ToString();
                 using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = phase};
+                }
             }
 
             return json.ToString();
@@ -326,9 +312,9 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream != null)
-                    using (StreamReader reader = new StreamReader(resStream))
-                        Console.WriteLine(reader.ReadToEnd());
+                if (resStream == null) return string.Empty;
+                using (StreamReader reader = new StreamReader(resStream))
+                    Console.WriteLine(reader.ReadToEnd());
             }
 
             return string.Empty;
@@ -360,9 +346,9 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream != null)
-                    using (StreamReader reader = new StreamReader(resStream))
-                        Console.WriteLine(reader.ReadToEnd());
+                if (resStream == null) return string.Empty;
+                using (StreamReader reader = new StreamReader(resStream))
+                    Console.WriteLine(reader.ReadToEnd());
             }
 
             return string.Empty;
@@ -390,9 +376,14 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream != null)
-                    using (StreamReader reader = new StreamReader(resStream))
-                        Console.WriteLine(reader.ReadToEnd());
+                if (resStream == null) return string.Empty;
+                using (StreamReader reader = new StreamReader(resStream))
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id};
+                }
             }
 
             return string.Empty;
@@ -420,9 +411,14 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream != null)
-                    using (StreamReader reader = new StreamReader(resStream))
-                        Console.WriteLine(reader.ReadToEnd());
+                if (resStream == null) return string.Empty;
+                using (StreamReader reader = new StreamReader(resStream))
+                {
+                    string response = reader.ReadToEnd();
+                    Console.WriteLine(response);
+
+                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id};
+                }
             }
 
             return string.Empty;
@@ -466,5 +462,31 @@ namespace BlockThemAll
         public long id { get; set; }
         public string id_str { get; set; }
         public string screen_name { get; set; }
+    }
+
+    [Serializable]
+    public class RateLimitException : Exception
+    {
+        public RateLimitException()
+        {
+            thrownAt = DateTime.Now;
+        }
+
+        public DateTime thrownAt { get; }
+        public string target { get; set; }
+        public string cursor { get; set; }
+
+        [SecurityPermission(SecurityAction.Demand, SerializationFormatter = true)]
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            if (info == null)
+                throw new ArgumentNullException(nameof(info));
+
+            info.AddValue("thrownAt", thrownAt);
+            info.AddValue("target", target);
+            info.AddValue("cursor", cursor);
+
+            base.GetObjectData(info, context);
+        }
     }
 }

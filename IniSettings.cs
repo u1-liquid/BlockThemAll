@@ -9,7 +9,7 @@ namespace BlockThemAll
     internal class IniSettings
     {
         private readonly FileInfo ini;
-        private readonly Dictionary<string, Dictionary<string, string>> settings = new Dictionary<string, Dictionary<string, string>>();
+        private readonly Dictionary<string, Dictionary<string, object>> settings = new Dictionary<string, Dictionary<string, object>>();
 
         public IniSettings(FileInfo file)
         {
@@ -24,7 +24,7 @@ namespace BlockThemAll
                 {
                     section = sectionMatch.Groups["section"].Value;
                     if (!settings.ContainsKey(section))
-                        settings.Add(section, new Dictionary<string, string>());
+                        settings.Add(section, new Dictionary<string, object>());
                 }
                 else
                 {
@@ -34,7 +34,7 @@ namespace BlockThemAll
                     {
                         section = "Default";
                         if (!settings.ContainsKey(section))
-                            settings.Add(section, new Dictionary<string, string>());
+                            settings.Add(section, new Dictionary<string, object>());
                     }
 
                     settings[section].Add(s[0].Trim(), string.Join("=", s, 1, s.Length - 1).Trim());
@@ -42,24 +42,24 @@ namespace BlockThemAll
             }
         }
 
-        internal string GetValue(string section, string key)
+        internal object GetValue(string section, string key)
         {
             if (!settings.ContainsKey(section)) return null;
             return settings[section].ContainsKey(key) ? settings[section][key] : null;
         }
 
-        internal string GetValue(string section, string key, string value)
+        internal object GetValue(string section, string key, object value)
         {
-            string result = GetValue(section, key);
+            object result = GetValue(section, key);
             if (result != null) return result;
             SetValue(section, key, value);
             return value;
         }
 
-        internal void SetValue(string section, string key, string value)
+        internal void SetValue(string section, string key, object value)
         {
             if (!settings.ContainsKey(section))
-                settings.Add(section, new Dictionary<string, string>());
+                settings.Add(section, new Dictionary<string, object>());
 
             if (!settings[section].ContainsKey(key))
                 settings[section].Add(key, value);
@@ -70,11 +70,11 @@ namespace BlockThemAll
         internal void Save()
         {
             StringBuilder sb = new StringBuilder();
-            foreach (KeyValuePair<string, Dictionary<string, string>> sections in settings)
+            foreach (KeyValuePair<string, Dictionary<string, object>> sections in settings)
             {
                 sb.AppendFormat("[{0}]{1}", sections.Key, Environment.NewLine);
-                foreach (KeyValuePair<string, string> config in sections.Value)
-                    sb.AppendLine(string.Join(" = ", config.Key, config.Value));
+                foreach (KeyValuePair<string, object> config in sections.Value)
+                    sb.AppendLine(string.Join(" = ", config.Key, Convert.ToString(config.Value)));
             }
 
             File.WriteAllText(ini.Name, sb.ToString());
