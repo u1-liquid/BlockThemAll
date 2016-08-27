@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace BlockThemAll
@@ -33,7 +33,7 @@ namespace BlockThemAll
                         if (s.Length < 2) continue;
                         if (string.IsNullOrEmpty(section))
                         {
-                            section = @"Default";
+                            section = "Default";
                             if (!settings.ContainsKey(section))
                                 settings.Add(section, new Dictionary<string, string>());
                         }
@@ -46,8 +46,17 @@ namespace BlockThemAll
 
         internal string GetValue(string section, string key)
         {
-            if (!settings.ContainsKey(section)) return string.Empty;
-            return settings[section].ContainsKey(key) ? settings[section][key] : string.Empty;
+            if (!settings.ContainsKey(section)) return null;
+            return settings[section].ContainsKey(key) ? settings[section][key] : null;
+        }
+
+        internal string GetValue(string section, string key, string value) {
+            var result = GetValue(section, key);
+            if (result == null) {
+                SetValue(section, key, value);
+                return value;
+            }
+            return result;
         }
 
         internal void SetValue(string section, string key, string value)
@@ -63,15 +72,15 @@ namespace BlockThemAll
 
         internal void Save()
         {
-            string text = string.Empty;
-            foreach (KeyValuePair<string, Dictionary<string, string>> sections in settings)
+            var sb = new StringBuilder();
+            foreach (var sections in settings)
             {
-                text += @"[" + sections.Key + @"]" + Environment.NewLine;
-                text = sections.Value.Aggregate(text,
-                    (current, config) => current + config.Key + @" = " + config.Value + Environment.NewLine);
+                sb.AppendFormat("[{0}]{1}", sections.Key, Environment.NewLine);
+                foreach (var config in sections.Value)
+                    sb.AppendLine(string.Join(" = ", config.Key, config.Value));
             }
 
-            File.WriteAllText(ini.Name, text);
+            File.WriteAllText(ini.Name, sb.ToString());
         }
     }
 }

@@ -36,7 +36,7 @@ namespace BlockThemAll
         public TokenPair App { get; }
         public TokenPair User { get; }
 
-        public WebRequest MakeRequest(string method, string url, object data = null)
+        public HttpWebRequest MakeRequest(string method, string url, object data = null)
         {
             method = method.ToUpper();
             Uri uri = new Uri(url);
@@ -71,7 +71,7 @@ namespace BlockThemAll
                     sbData.AppendFormat("{0}=\"{1}\",", st.Key, Convert.ToString(st.Value));
             sbData.Remove(sbData.Length - 1, 1);
 
-            HttpWebRequest req = (HttpWebRequest) WebRequest.Create(uri);
+            HttpWebRequest req = WebRequest.CreateHttp(uri);
             req.Method = method;
             req.AutomaticDecompression = DecompressionMethods.Deflate | DecompressionMethods.GZip;
             req.UserAgent = "Twitter Client";
