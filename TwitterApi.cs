@@ -21,71 +21,49 @@ namespace BlockThemAll
         public static TwitterOAuth Login(IniSettings setting)
         {
             string AuthData = "Authenticate";
-            string consumerKey = setting.GetValue(AuthData, "ConsumerKey");
-            string consumerSecret = setting.GetValue(AuthData, "ConsumerSecret");
-            string accessToken = setting.GetValue(AuthData, "AccessToken");
-            string accessSecret = setting.GetValue(AuthData, "AccessSecret");
+            string consumerKey = setting.GetValue(AuthData, "ConsumerKey", string.Empty);
+            string consumerSecret = setting.GetValue(AuthData, "ConsumerSecret", string.Empty);
+            string accessToken = setting.GetValue(AuthData, "AccessToken", string.Empty);
+            string accessSecret = setting.GetValue(AuthData, "AccessSecret", string.Empty);
             if (string.IsNullOrWhiteSpace(consumerKey) || string.IsNullOrWhiteSpace(consumerSecret))
             {
-                Console.WriteLine("Unable to get consumerKey / Secret. Please check config file.");
-                if (string.IsNullOrWhiteSpace(consumerKey)) setting.SetValue(AuthData, "ConsumerKey", "");
-                if (string.IsNullOrWhiteSpace(consumerSecret)) setting.SetValue(AuthData, "ConsumerSecret", "");
-                if (string.IsNullOrWhiteSpace(accessToken)) setting.SetValue(AuthData, "AccessToken", "");
-                if (string.IsNullOrWhiteSpace(accessSecret)) setting.SetValue(AuthData, "AccessSecret", "");
                 setting.Save();
+                Console.WriteLine("Unable to get consumerKey / Secret. Please check config file.");
+                Console.ReadKey(true);
                 return null;
             }
             if (string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(accessSecret))
             {
                 TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret);
                 TwitterOAuth.TokenPair tokens = TwitterOAuth.RequestToken();
-                TwitterOAuth.User.Token = tokens.Token;
-                TwitterOAuth.User.Secret = tokens.Token;
+                var authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
                 try
                 {
-                    using (
-                        Process.Start(new ProcessStartInfo
-                        {
-                            UseShellExecute = true,
-                            FileName = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token
-                        })) {}
+                    using (Process.Start("explorer", authorizationUrlString)) {}
                 }
                 catch
                 {
-                    // ignored
+                    Console.WriteLine("Failed to open web browser.\nYou have to access manually this url:\n{0}", authorizationUrlString);
                 }
 
                 string verifier;
-                int i;
 
                 do
                 {
                     Console.Write("Please input verifier code : ");
                     verifier = Console.ReadLine();
-                } while (!int.TryParse(verifier, out i));
+                } while (string.IsNullOrWhiteSpace(verifier));
 
                 tokens = TwitterOAuth.AccessToken(verifier);
 
                 if (tokens != null)
                 {
-                    TwitterOAuth.User.Token = tokens.Token;
-                    TwitterOAuth.User.Secret = tokens.Token;
-                    accessToken = TwitterOAuth.User.Token;
-                    accessSecret = TwitterOAuth.User.Secret;
-                    setting.SetValue(AuthData, "AccessToken", tokens.Token);
-                    setting.SetValue(AuthData, "AccessSecret", tokens.Secret);
+                    setting.SetValue(AuthData, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
+                    setting.SetValue(AuthData, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
                     setting.Save();
                 }
-
-                setting.Save();
-
-                TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
             }
-            else
-            {
-                TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
-            }
-            return TwitterOAuth;
+            return TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
         }
 
         public static string getMyId()
@@ -94,7 +72,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET", "https://api.twitter.com/1.1/account/verify_credentials.json");
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET", "https://api.twitter.com/1.1/account/verify_credentials.json");
 
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream != null)
@@ -130,7 +108,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET",
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET",
                     "https://api.twitter.com/1.1/friends/ids.json?stringify_ids=true&cursor=" + cursor + "&user_id=" + id + "&count=5000");
 
                 Stream resStream = req.GetResponse().GetResponseStream();
@@ -155,7 +133,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET",
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET",
                     "https://api.twitter.com/1.1/followers/ids.json?stringify_ids=true&cursor=" + cursor + "&user_id=" + id + "&count=5000");
 
                 Stream resStream = req.GetResponse().GetResponseStream();
@@ -180,7 +158,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET",
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET",
                     "https://api.twitter.com/1.1/blocks/ids.json?stringify_ids=true&cursor=" + cursor);
 
                 Stream resStream = req.GetResponse().GetResponseStream();
@@ -202,10 +180,12 @@ namespace BlockThemAll
                     {
                         Console.Write("Do you want retry get block list after 15min? (Yes/No/Auto)");
                         string readLine = Console.ReadLine();
-                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("N"))
-                            return json.ToString();
-                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("A"))
-                            AutoWaitForBlockList = true;
+                        if (readLine != null) {
+                            if (readLine.ToUpper().Trim().StartsWith("N"))
+                                return json.ToString();
+                            if (readLine.ToUpper().Trim().StartsWith("A"))
+                                AutoWaitForBlockList = true;
+                        }
                     }
 
                     Console.WriteLine("Wait for 15min... The job will be resumed at : " +
@@ -224,7 +204,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET", "https://api.twitter.com/1.1/mutes/users/ids.json?cursor=" + cursor);
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET", "https://api.twitter.com/1.1/mutes/users/ids.json?cursor=" + cursor);
 
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream != null)
@@ -245,10 +225,12 @@ namespace BlockThemAll
                     {
                         Console.Write("Do you want retry get mute list after 15min? (Yes/No/Auto)");
                         string readLine = Console.ReadLine();
-                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("N"))
-                            return json.ToString();
-                        if ((readLine != null) && readLine.ToUpper().Trim().StartsWith("A"))
-                            AutoWaitForMuteList = true;
+                        if (readLine != null) {
+                            if (readLine.ToUpper().Trim().StartsWith("N"))
+                                return json.ToString();
+                            if (readLine.ToUpper().Trim().StartsWith("A"))
+                                AutoWaitForMuteList = true;
+                        }
                     }
 
                     Console.WriteLine("Wait for 15min... The job will be resumed at : " +
@@ -267,7 +249,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET",
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET",
                     "https://api.twitter.com/1.1/followers/ids.json?stringify_ids=true&cursor=" + cursor + "&screen_name=" + username +
                     "&count=5000");
 
@@ -293,7 +275,7 @@ namespace BlockThemAll
 
             try
             {
-                WebRequest req = TwitterOAuth.MakeRequest("GET",
+                HttpWebRequest req = TwitterOAuth.MakeRequest("GET",
                     newReq
                         ? "https://api.twitter.com/1.1/search/tweets.json?q=" + phase +
                           "&result_type=recent&count=100&include_entities=false"
@@ -328,7 +310,7 @@ namespace BlockThemAll
             {
                 byte[] buff = Encoding.UTF8.GetBytes(TwitterOAuth.ToString(obj));
 
-                WebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/blocks/create.json", obj);
+                HttpWebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/blocks/create.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream == null) return string.Empty;
@@ -362,7 +344,7 @@ namespace BlockThemAll
             {
                 byte[] buff = Encoding.UTF8.GetBytes(TwitterOAuth.ToString(obj));
 
-                WebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/blocks/destroy.json", obj);
+                HttpWebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/blocks/destroy.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream == null) return string.Empty;
@@ -392,7 +374,7 @@ namespace BlockThemAll
             {
                 byte[] buff = Encoding.UTF8.GetBytes(TwitterOAuth.ToString(obj));
 
-                WebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/mutes/users/create.json", obj);
+                HttpWebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/mutes/users/create.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream == null) return string.Empty;
@@ -422,7 +404,7 @@ namespace BlockThemAll
             {
                 byte[] buff = Encoding.UTF8.GetBytes(TwitterOAuth.ToString(obj));
 
-                WebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/mutes/users/destroy.json", obj);
+                HttpWebRequest req = TwitterOAuth.MakeRequest("POST", "https://api.twitter.com/1.1/mutes/users/destroy.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream == null) return string.Empty;

@@ -15,7 +15,7 @@ namespace BlockThemAll
         private static void Main()
         {
             TwitterApi.Login(new IniSettings(new FileInfo(ini_file)));
-            if (TwitterApi.TwitterOAuth.User.Token == null) return;
+            if (TwitterApi.TwitterOAuth == null || TwitterApi.TwitterOAuth.User.Token == null) return;
 
             HashSet<string> whitelist = new HashSet<string>();
             HashSet<string> blocklist = new HashSet<string>();
@@ -31,10 +31,9 @@ namespace BlockThemAll
                 while (result != null)
                 {
                     whitelist.UnionWith(result.ids);
-                    if (result.next_cursor != 0)
-                        result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(myId, result.next_cursor_str));
-                    else
+                    if (result.next_cursor == 0)
                         break;
+                    result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(myId, result.next_cursor_str));
                 }
 
                 Console.WriteLine("Get My Followers...");
@@ -42,10 +41,9 @@ namespace BlockThemAll
                 while (result != null)
                 {
                     whitelist.UnionWith(result.ids);
-                    if (result.next_cursor != 0)
-                        result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(myId, result.next_cursor_str));
-                    else
+                    if (result.next_cursor == 0)
                         break;
+                    result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(myId, result.next_cursor_str));
                 }
 
                 Console.Write("Do you have backup of blocklist? (Y/N)");
@@ -64,10 +62,9 @@ namespace BlockThemAll
                     while (result != null)
                     {
                         blocklist.UnionWith(result.ids);
-                        if (result.next_cursor != 0)
-                            result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyBlockList(result.next_cursor_str));
-                        else
+                        if (result.next_cursor == 0)
                             break;
+                        result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyBlockList(result.next_cursor_str));
                     }
                 }
             }
@@ -93,7 +90,7 @@ namespace BlockThemAll
                     Console.WriteLine("Please check your input is correct!");
                     if (DialogResult.No ==
                         MessageBox.Show(
-                            "Please check your input is correct. \n \n" + string.Join("\n", targets) + "\n \n Press Yes to go.",
+                            string.Join("\n \n", new[] {"Please check your input is correct. ", string.Join("\n", targets), " Press Yes to go."}),
                             "Check your input is correct",
                             MessageBoxButtons.YesNo, MessageBoxIcon.Question)) continue;
 
@@ -106,7 +103,7 @@ namespace BlockThemAll
                         if (target.StartsWith("@"))
                         {
                             string username = target.Substring(1);
-                            Console.WriteLine("Get " + target + "'s Followers...");
+                            Console.WriteLine("Get {0}'s Followers...", target);
                             string json = TwitterApi.getFollowers(username, "-1");
                             if (!string.IsNullOrWhiteSpace(json))
                             {
@@ -131,7 +128,7 @@ namespace BlockThemAll
                         }
                         else
                         {
-                            Console.WriteLine("Search " + target + "...");
+                            Console.WriteLine("Search {0}...", target);
                             string json = TwitterApi.searchPhase(Uri.EscapeDataString(target), true);
                             if (!string.IsNullOrWhiteSpace(json))
                             {
@@ -175,7 +172,7 @@ namespace BlockThemAll
             Console.Write("Do you want export your block list? (Y/N) : ");
             readLine = Console.ReadLine();
             if ((readLine != null) && readLine.ToUpper().Trim().Equals("Y"))
-                File.WriteAllText("blocklist_" + DateTime.Now.ToString("yyyy-MM-dd_HHmm") + ".csv", string.Join(",", blocklist));
+                File.WriteAllText(string.Format("blocklist_{0:yyyy-MM-dd_HHmm}.csv", DateTime.Now.ToString("")), string.Join(",", blocklist));
         }
     }
 }
