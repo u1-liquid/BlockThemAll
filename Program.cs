@@ -18,36 +18,39 @@ namespace BlockThemAll
         {
             settings = new IniSettings(new FileInfo(ini_file));
 
+            Console.WriteLine("Loading login info...");
             TwitterApi.Login(settings);
             if ((TwitterApi.TwitterOAuth == null) || (TwitterApi.TwitterOAuth.User.Token == null)) return;
 
             HashSet<string> whitelist = new HashSet<string>();
             HashSet<string> blocklist = new HashSet<string>();
 
-            Console.WriteLine("Loading login info...");
-            string myId = TwitterApi.getMyId();
-
             string readLine;
-            if (!string.IsNullOrEmpty(myId))
+            if ((TwitterApi.MyUserInfo != null) && !string.IsNullOrEmpty(TwitterApi.MyUserInfo.id_str))
             {
                 Console.WriteLine("Get My Friends...");
-                UserIdsObject result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(myId, "-1"));
+                UserIdsObject result =
+                    JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(TwitterApi.MyUserInfo.id_str, "-1"));
                 while (result != null)
                 {
                     whitelist.UnionWith(result.ids);
                     if (result.next_cursor == 0)
                         break;
-                    result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(myId, result.next_cursor_str));
+                    result =
+                        JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(TwitterApi.MyUserInfo.id_str,
+                            result.next_cursor_str));
                 }
 
                 Console.WriteLine("Get My Followers...");
-                result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(myId, "-1"));
+                result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(TwitterApi.MyUserInfo.id_str, "-1"));
                 while (result != null)
                 {
                     whitelist.UnionWith(result.ids);
                     if (result.next_cursor == 0)
                         break;
-                    result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(myId, result.next_cursor_str));
+                    result =
+                        JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(TwitterApi.MyUserInfo.id_str,
+                            result.next_cursor_str));
                 }
 
                 Console.Write("Do you have backup of blocklist? (Y/N)");
@@ -81,7 +84,7 @@ namespace BlockThemAll
                         }
                         catch (RateLimitException)
                         {
-                            if ((bool) settings.GetValue("Configuration", "AutoRetry_GetBlockList", false) == false)
+                            if (Convert.ToBoolean(settings.GetValue("Configuration", "AutoRetry_GetBlockList", false)) == false)
                             {
                                 Console.Write("Do you want retry get block list after 15min? (Yes/No/Auto)");
                                 readLine = Console.ReadLine();
@@ -105,6 +108,8 @@ namespace BlockThemAll
             else
             {
                 Console.WriteLine("Failed to get your info!");
+                Console.ReadKey(true);
+                return;
             }
 
             Console.WriteLine($"Whitelist = {whitelist.Count}, Blocklist = {blocklist.Count}");
@@ -172,8 +177,10 @@ namespace BlockThemAll
                                     $"Target = {(target.Length < 18 ? target : target.Substring(0, 17) + "...")}, Progress = {count}/{targetLists.Count} ({Math.Round(count * 100 / (double) targetLists.Count, 2)}%), Blocklist = {blocklist.Count}");
                             }
 
+                            if (rateLimit == null) continue;
+
                             TimeSpan wait = rateLimit.thrownAt.AddMinutes(15) - DateTime.Now;
-                            if ((rateLimit == null) || (wait < TimeSpan.Zero)) continue;
+                            if (wait < TimeSpan.Zero) continue;
 
                             Console.WriteLine($"Wait {wait:g} for Rate limit...");
                             Thread.Sleep(wait);

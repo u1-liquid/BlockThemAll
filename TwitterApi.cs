@@ -8,65 +8,74 @@ using System.Security.Permissions;
 using System.Text;
 using System.Text.RegularExpressions;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 
 namespace BlockThemAll
 {
     internal static class TwitterApi
     {
         public static TwitterOAuth TwitterOAuth { get; internal set; }
+        public static UserInfoObject MyUserInfo { get; internal set; }
 
-        public static TwitterOAuth Login(IniSettings setting) => Login(setting, "Authenticate");
+        public static void Login(IniSettings setting) => Login(setting, "Authenticate");
 
-        public static TwitterOAuth Login(IniSettings setting, string section)
+        public static void Login(IniSettings setting, string section)
         {
-            string consumerKey = setting.GetValue(section, "ConsumerKey", string.Empty) as string;
-            string consumerSecret = setting.GetValue(section, "ConsumerSecret", string.Empty) as string;
-            string accessToken = setting.GetValue(section, "AccessToken", string.Empty) as string;
-            string accessSecret = setting.GetValue(section, "AccessSecret", string.Empty) as string;
+            string consumerKey = Convert.ToString(setting.GetValue(section, "ConsumerKey", string.Empty));
+            string consumerSecret = Convert.ToString(setting.GetValue(section, "ConsumerSecret", string.Empty));
+            string accessToken = Convert.ToString(setting.GetValue(section, "AccessToken", string.Empty));
+            string accessSecret = Convert.ToString(setting.GetValue(section, "AccessSecret", string.Empty));
             if (string.IsNullOrWhiteSpace(consumerKey) || string.IsNullOrWhiteSpace(consumerSecret))
             {
                 setting.Save();
                 Console.WriteLine("Unable to get consumerKey / Secret. Please check config file.");
                 Console.ReadKey(true);
-                return null;
+                return;
             }
 
-            if (!string.IsNullOrWhiteSpace(accessToken) && !string.IsNullOrWhiteSpace(accessSecret))
-                return TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
-
-            TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret);
-            TwitterOAuth.TokenPair tokens = TwitterOAuth.RequestToken();
-            string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
-            try
+            if (string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(accessSecret))
             {
-                using (Process.Start("explorer", authorizationUrlString)) {}
+                TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret);
+                TwitterOAuth.TokenPair tokens = TwitterOAuth.RequestToken();
+                string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
+                try
+                {
+                    using (Process.Start("explorer", authorizationUrlString)) {}
+                }
+                catch
+                {
+                    Console.WriteLine($"Failed to open web browser.\nYou have to access manually this url:\n{authorizationUrlString}");
+                }
+
+                string verifier;
+
+                do
+                {
+                    Console.Write("Please input verifier code : ");
+                    verifier = Console.ReadLine();
+                } while (string.IsNullOrWhiteSpace(verifier));
+
+                tokens = TwitterOAuth.AccessToken(verifier);
+
+                if (tokens != null)
+                {
+                    setting.SetValue(section, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
+                    setting.SetValue(section, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
+                    setting.Save();
+                }
+                else
+                {
+                    Console.WriteLine("Unable to login to your account.");
+                    TwitterOAuth = null;
+                    Console.ReadKey(true);
+                    return;
+                }
             }
-            catch
-            {
-                Console.WriteLine($"Failed to open web browser.\nYou have to access manually this url:\n{authorizationUrlString}");
-            }
 
-            string verifier;
-
-            do
-            {
-                Console.Write("Please input verifier code : ");
-                verifier = Console.ReadLine();
-            } while (string.IsNullOrWhiteSpace(verifier));
-
-            tokens = TwitterOAuth.AccessToken(verifier);
-
-            if (tokens == null) return TwitterOAuth = null;
-
-            setting.SetValue(section, "AccessToken", accessToken = TwitterOAuth.User.Token = tokens.Token);
-            setting.SetValue(section, "AccessSecret", accessSecret = TwitterOAuth.User.Secret = tokens.Token);
-            setting.Save();
-
-            return TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
+            TwitterOAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
+            MyUserInfo = getMyUserInfo();
         }
 
-        public static string getMyId()
+        private static UserInfoObject getMyUserInfo()
         {
             StringBuilder json = new StringBuilder();
 
@@ -89,17 +98,7 @@ namespace BlockThemAll
                         Console.WriteLine(reader.ReadToEnd());
             }
 
-            try
-            {
-                JObject obj = JObject.Parse(json.ToString());
-                return obj["id_str"].ToString();
-            }
-            catch
-            {
-                // ignored
-            }
-
-            return string.Empty;
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserInfoObject>(json.ToString()) : null;
         }
 
         public static string getMyFriends(string id, string cursor)
