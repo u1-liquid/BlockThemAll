@@ -213,7 +213,7 @@ namespace BlockThemAll
                     result =
                         JsonConvert.DeserializeObject<SearchResultObject>(
                             TwitterApi.searchPhase(result.search_metadata.next_results, false));
-                    if (result == null) break;
+                    if (result?.search_metadata.next_results == null) break;
                 }
             }
             else
