@@ -19,37 +19,37 @@ namespace BlockThemAll
             settings = new IniSettings(new FileInfo(ini_file));
 
             Console.WriteLine("Loading login info...");
-            TwitterApi.Login(settings);
-            if ((TwitterApi.TwitterOAuth == null) || (TwitterApi.TwitterOAuth.User.Token == null)) return;
+            TwitterApi twitter = TwitterApi.Login(settings);
+            if (twitter.OAuth?.User.Token == null) return;
 
             HashSet<string> whitelist = new HashSet<string>();
             HashSet<string> blocklist = new HashSet<string>();
 
             string readLine;
-            if ((TwitterApi.MyUserInfo != null) && !string.IsNullOrEmpty(TwitterApi.MyUserInfo.id_str))
+            if (!string.IsNullOrEmpty(twitter.MyUserInfo?.id_str))
             {
                 Console.WriteLine("Get My Friends...");
                 UserIdsObject result =
-                    JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(TwitterApi.MyUserInfo.id_str, "-1"));
+                    JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFriends(twitter.MyUserInfo.id_str, "-1"));
                 while (result != null)
                 {
                     whitelist.UnionWith(result.ids);
                     if (result.next_cursor == 0)
                         break;
                     result =
-                        JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFriends(TwitterApi.MyUserInfo.id_str,
+                        JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFriends(twitter.MyUserInfo.id_str,
                             result.next_cursor_str));
                 }
 
                 Console.WriteLine("Get My Followers...");
-                result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(TwitterApi.MyUserInfo.id_str, "-1"));
+                result = JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFollowers(twitter.MyUserInfo.id_str, "-1"));
                 while (result != null)
                 {
                     whitelist.UnionWith(result.ids);
                     if (result.next_cursor == 0)
                         break;
                     result =
-                        JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyFollowers(TwitterApi.MyUserInfo.id_str,
+                        JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFollowers(twitter.MyUserInfo.id_str,
                             result.next_cursor_str));
                 }
 
@@ -70,14 +70,14 @@ namespace BlockThemAll
                     while (true)
                         try
                         {
-                            result = JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyBlockList(cursor));
+                            result = JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyBlockList(cursor));
                             while (result != null)
                             {
                                 blocklist.UnionWith(result.ids);
                                 if (result.next_cursor == 0)
                                     break;
                                 result =
-                                    JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getMyBlockList(cursor = result.next_cursor_str));
+                                    JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyBlockList(cursor = result.next_cursor_str));
                             }
 
                             break;
@@ -133,8 +133,13 @@ namespace BlockThemAll
                             "Check your input is correct",
                             MessageBoxButtons.YesNo, MessageBoxIcon.Question)) continue;
 
+                    while (Console.KeyAvailable)
+                        Console.ReadKey(true);
+
+                    bool userStopped = false;
                     foreach (string target in targets)
                     {
+                        if (userStopped) break;
                         if (string.IsNullOrWhiteSpace(target)) continue;
                         RateLimitException rateLimit = null;
 
@@ -147,15 +152,15 @@ namespace BlockThemAll
                                 if (target.StartsWith("@"))
                                 {
                                     string username = target.Substring(1);
-                                    blocklist.Add(TwitterApi.Block(username, true));
-                                    GetTargetFollowers(username, rateLimit == null ? "-1" : rateLimit.cursor, targetLists);
+                                    blocklist.Add(twitter.Block(username, true));
+                                    GetTargetFollowers(twitter, username, rateLimit == null ? "-1" : rateLimit.cursor, targetLists);
                                 }
                                 else
                                 {
                                     if (rateLimit == null)
-                                        GetTargetSearchResult(target, true, targetLists);
+                                        GetTargetSearchResult(twitter, target, true, targetLists);
                                     else
-                                        GetTargetSearchResult(rateLimit.target, false, targetLists);
+                                        GetTargetSearchResult(twitter, rateLimit.target, false, targetLists);
                                 }
 
                                 rateLimit = null;
@@ -172,9 +177,21 @@ namespace BlockThemAll
                             {
                                 count++;
                                 if (whitelist.Contains(s) || blocklist.Contains(s)) continue;
-                                blocklist.Add(TwitterApi.Block(s));
+                                blocklist.Add(twitter.Block(s));
                                 Console.WriteLine(
                                     $"Target = {(target.Length < 18 ? target : target.Substring(0, 17) + "...")}, Progress = {count}/{targetLists.Count} ({Math.Round(count * 100 / (double) targetLists.Count, 2)}%), Blocklist = {blocklist.Count}");
+
+
+                                if (!Console.KeyAvailable) continue;
+                                Console.WriteLine("Do you want stop processing this list and targets?");
+                                if (DialogResult.Yes != MessageBox.Show("Do you want stop processing this list and targets?",
+                                        "Stop ?",
+                                        MessageBoxButtons.YesNo, MessageBoxIcon.Question)) continue;
+                                while (Console.KeyAvailable)
+                                    Console.ReadKey(true);
+                                rateLimit = null;
+                                userStopped = true;
+                                break;
                             }
 
                             if (rateLimit == null) continue;
@@ -200,10 +217,10 @@ namespace BlockThemAll
                 File.WriteAllText($"blocklist_{DateTime.Now:yyyy-MM-dd_HHmm}.csv", string.Join(",", blocklist));
         }
 
-        private static void GetTargetSearchResult(string target, bool isNewReq, HashSet<string> targetLists)
+        private static void GetTargetSearchResult(TwitterApi twitter, string target, bool isNewReq, HashSet<string> targetLists)
         {
             Console.WriteLine($"Search {target}...");
-            string json = TwitterApi.searchPhase(Uri.EscapeDataString(target), isNewReq);
+            string json = twitter.searchPhase(Uri.EscapeDataString(target), isNewReq);
             if (!string.IsNullOrWhiteSpace(json))
             {
                 SearchResultObject result = JsonConvert.DeserializeObject<SearchResultObject>(json);
@@ -212,7 +229,7 @@ namespace BlockThemAll
                     targetLists.UnionWith(result.statuses.Select(x => x.user.id_str));
                     result =
                         JsonConvert.DeserializeObject<SearchResultObject>(
-                            TwitterApi.searchPhase(result.search_metadata.next_results, false));
+                            twitter.searchPhase(result.search_metadata.next_results, false));
                     if (result?.search_metadata.next_results == null) break;
                 }
             }
@@ -222,10 +239,10 @@ namespace BlockThemAll
             }
         }
 
-        private static void GetTargetFollowers(string username, string cursor, HashSet<string> targetLists)
+        private static void GetTargetFollowers(TwitterApi twitter, string username, string cursor, HashSet<string> targetLists)
         {
             Console.WriteLine($"Get {username}'s Followers...");
-            string json = TwitterApi.getFollowers(username, cursor);
+            string json = twitter.getFollowers(username, cursor);
             if (!string.IsNullOrWhiteSpace(json))
             {
                 UserIdsObject result = JsonConvert.DeserializeObject<UserIdsObject>(json);
@@ -235,7 +252,7 @@ namespace BlockThemAll
                     if (result.next_cursor == 0)
                         break;
                     result =
-                        JsonConvert.DeserializeObject<UserIdsObject>(TwitterApi.getFollowers(username,
+                        JsonConvert.DeserializeObject<UserIdsObject>(twitter.getFollowers(username,
                             result.next_cursor_str));
                 }
             }
