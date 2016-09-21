@@ -17,7 +17,8 @@ namespace BlockThemAll
         [STAThread]
         private static void Main()
         {
-            Console.OutputEncoding = Encoding.UTF8;
+            Console.InputEncoding = Encoding.Unicode;
+            Console.OutputEncoding = Encoding.Unicode;
 
             settings = new IniSettings(new FileInfo(ini_file));
 
