@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Threading;
 using System.Windows.Forms;
 using Newtonsoft.Json;
@@ -16,6 +17,8 @@ namespace BlockThemAll
         [STAThread]
         private static void Main()
         {
+            Console.OutputEncoding = Encoding.UTF8;
+
             settings = new IniSettings(new FileInfo(ini_file));
 
             Console.WriteLine("Loading login info...");
