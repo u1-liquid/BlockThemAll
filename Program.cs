@@ -187,12 +187,12 @@ namespace BlockThemAll
                                     $"Progress= {count}/{targetLists.Count} ({Math.Round(count * 100 / (double) targetLists.Count, 2)}%), Blocklist= {blocklist.Count}");
                                 
                                 if (!Console.KeyAvailable) continue;
+                                while (Console.KeyAvailable)
+                                    Console.ReadKey(true);
                                 Console.WriteLine("Do you want stop processing this list and targets?");
                                 if (DialogResult.Yes != MessageBox.Show("Do you want stop processing this list and targets?",
                                         "Stop ?",
                                         MessageBoxButtons.YesNo, MessageBoxIcon.Question)) continue;
-                                while (Console.KeyAvailable)
-                                    Console.ReadKey(true);
                                 rateLimit = null;
                                 userStopped = true;
                                 break;
