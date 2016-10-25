@@ -37,6 +37,8 @@ namespace BlockThemAll
             {
                 api.OAuth = new TwitterOAuth(consumerKey, consumerSecret);
                 TwitterOAuth.TokenPair tokens = api.OAuth.RequestToken();
+                api.OAuth.User.Token = tokens.Token;
+                api.OAuth.User.Secret = tokens.Secret;
                 string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
                 try
                 {

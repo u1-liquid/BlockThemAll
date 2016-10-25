@@ -240,8 +240,12 @@ namespace BlockThemAll
                     }
                 return null;
             }
-            catch
+            catch (WebException ex)
             {
+                Stream resStream = ex.Response?.GetResponseStream();
+                if (resStream == null) return null;
+                using (StreamReader reader = new StreamReader(resStream))
+                    Console.WriteLine(reader.ReadToEnd());
                 return null;
             }
         }
@@ -272,8 +276,12 @@ namespace BlockThemAll
                     }
                 return null;
             }
-            catch
+            catch (WebException ex)
             {
+                Stream resStream = ex.Response?.GetResponseStream();
+                if (resStream == null) return null;
+                using (StreamReader reader = new StreamReader(resStream))
+                    Console.WriteLine(reader.ReadToEnd());
                 return null;
             }
         }

@@ -183,9 +183,9 @@ namespace BlockThemAll
                                 if (whitelist.Contains(s) || blocklist.Contains(s)) continue;
                                 blocklist.Add(twitter.Block(s));
                                 Console.WriteLine(
-                                    $"Target= {(target.Length < 18 ? target : target.Substring(0, 17) + "...")}, " + 
+                                    $"Target= {(target.Length < 18 ? target : target.Substring(0, 17) + "...")}, " +
                                     $"Progress= {count}/{targetLists.Count} ({Math.Round(count * 100 / (double) targetLists.Count, 2)}%), Blocklist= {blocklist.Count}");
-                                
+
                                 if (!Console.KeyAvailable) continue;
                                 while (Console.KeyAvailable)
                                     Console.ReadKey(true);
