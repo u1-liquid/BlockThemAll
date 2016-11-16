@@ -45,16 +45,21 @@ namespace BlockThemAll
                             result.next_cursor_str));
                 }
 
-                Console.WriteLine("Get My Followers...");
-                result = JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFollowers(twitter.MyUserInfo.id_str, "-1"));
-                while (result != null)
+                Console.Write("Do you want to include your Followers into whitelist? (Y/N)");
+                readLine = Console.ReadLine();
+                if ((readLine != null) && readLine.ToUpper().Trim().Equals("Y"))
                 {
-                    whitelist.UnionWith(result.ids);
-                    if (result.next_cursor == 0)
-                        break;
-                    result =
-                        JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFollowers(twitter.MyUserInfo.id_str,
-                            result.next_cursor_str));
+                    Console.WriteLine("Get My Followers...");
+                    result = JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFollowers(twitter.MyUserInfo.id_str, "-1"));
+                    while (result != null)
+                    {
+                        whitelist.UnionWith(result.ids);
+                        if (result.next_cursor == 0)
+                            break;
+                        result =
+                            JsonConvert.DeserializeObject<UserIdsObject>(twitter.getMyFollowers(twitter.MyUserInfo.id_str,
+                                result.next_cursor_str));
+                    }
                 }
 
                 Console.Write("Do you have backup of blocklist? (Y/N)");
