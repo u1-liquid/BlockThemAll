@@ -66,7 +66,7 @@ namespace BlockThemAll
                 if (tokens != null)
                 {
                     setting.SetValue(section, "AccessToken", accessToken = api.OAuth.User.Token = tokens.Token);
-                    setting.SetValue(section, "AccessSecret", accessSecret = api.OAuth.User.Secret = tokens.Token);
+                    setting.SetValue(section, "AccessSecret", accessSecret = api.OAuth.User.Secret = tokens.Secret);
                     setting.Save();
                 }
                 else
