@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlockThemAll", "BlockThemAll.csproj", "{B9651D2A-F860-427B-B7C4-A72ABF85A2F6}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BlockThemAll", "BlockThemAll.csproj", "{6D6B1C17-A9CD-4F30-B542-6A39BE3C32C3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +15,10 @@ Global
 		{B9651D2A-F860-427B-B7C4-A72ABF85A2F6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B9651D2A-F860-427B-B7C4-A72ABF85A2F6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B9651D2A-F860-427B-B7C4-A72ABF85A2F6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D6B1C17-A9CD-4F30-B542-6A39BE3C32C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D6B1C17-A9CD-4F30-B542-6A39BE3C32C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D6B1C17-A9CD-4F30-B542-6A39BE3C32C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D6B1C17-A9CD-4F30-B542-6A39BE3C32C3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

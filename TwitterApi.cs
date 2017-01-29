@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
+using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 using System.Text;
@@ -11,15 +12,24 @@ using Newtonsoft.Json;
 
 namespace BlockThemAll
 {
-    internal class TwitterApi
+    public class TwitterApi
     {
+        public UserStatus Status { get; internal set; } = UserStatus.NO_CREDITIONAL;
         public TwitterOAuth OAuth { get; internal set; }
         public UserInfoObject MyUserInfo { get; internal set; }
+        private IniSettings setting;
+        private string section;
 
         public static TwitterApi Login(IniSettings setting) => Login(setting, "Authenticate");
 
         public static TwitterApi Login(IniSettings setting, string section)
         {
+            TwitterApi api = new TwitterApi
+            {
+                setting = setting,
+                section = section
+            };
+
             string consumerKey = Convert.ToString(setting.GetValue(section, "ConsumerKey", string.Empty));
             string consumerSecret = Convert.ToString(setting.GetValue(section, "ConsumerSecret", string.Empty));
             string accessToken = Convert.ToString(setting.GetValue(section, "AccessToken", string.Empty));
@@ -27,62 +37,51 @@ namespace BlockThemAll
             if (string.IsNullOrWhiteSpace(consumerKey) || string.IsNullOrWhiteSpace(consumerSecret))
             {
                 setting.Save();
-                Console.WriteLine("Unable to get consumerKey / Secret. Please check config file.");
-                Console.ReadKey(true);
-                return null;
+                api.Status = UserStatus.NO_APIKEY;
+                return api;
             }
 
-            TwitterApi api = new TwitterApi();
             if (string.IsNullOrWhiteSpace(accessToken) || string.IsNullOrWhiteSpace(accessSecret))
             {
                 api.OAuth = new TwitterOAuth(consumerKey, consumerSecret);
                 TwitterOAuth.TokenPair tokens = api.OAuth.RequestToken();
-                api.OAuth.User.Token = tokens.Token;
-                api.OAuth.User.Secret = tokens.Secret;
-                string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + tokens.Token;
-                try
+                if (tokens == null)
                 {
-                    Process.Start(new ProcessStartInfo
-                    {
-                        UseShellExecute = true,
-                        FileName = authorizationUrlString
-                    });
-                }
-                catch
-                {
-                    Console.WriteLine($"Failed to open web browser.\nYou have to access manually this url:\n{authorizationUrlString}");
-                }
-
-                string verifier;
-
-                do
-                {
-                    Console.Write("Please input verifier code : ");
-                    verifier = Console.ReadLine();
-                } while (string.IsNullOrWhiteSpace(verifier));
-
-                tokens = api.OAuth.AccessToken(verifier);
-
-                if (tokens != null)
-                {
-                    setting.SetValue(section, "AccessToken", accessToken = api.OAuth.User.Token = tokens.Token);
-                    setting.SetValue(section, "AccessSecret", accessSecret = api.OAuth.User.Secret = tokens.Secret);
-                    setting.Save();
-                }
-                else
-                {
-                    Console.WriteLine("Unable to login to your account.");
-                    api.OAuth = null;
-                    Console.ReadKey(true);
+                    api.Status = UserStatus.NO_APIKEY;
                     return api;
                 }
+
+                api.OAuth.User.Token = tokens.Token;
+                api.OAuth.User.Secret = tokens.Secret;
+                api.Status = UserStatus.LOGIN_REQUESTED;
+                return api;
             }
 
             api.OAuth = new TwitterOAuth(consumerKey, consumerSecret, accessToken, accessSecret);
             api.MyUserInfo = api.getMyUserInfo();
+            api.Status = api.MyUserInfo == null ? UserStatus.INVALID_CREDITIONAL : UserStatus.LOGIN_SUCCESS;
 
             return api;
         }
+
+        public void Authenticate(string verifier)
+        {
+            TwitterOAuth.TokenPair tokens = OAuth.AccessToken(verifier);
+
+            if (tokens == null)
+            {
+                OAuth = null;
+                Status = UserStatus.NO_CREDITIONAL;
+                return;
+            }
+
+            setting.SetValue(section, "AccessToken", OAuth.User.Token = tokens.Token);
+            setting.SetValue(section, "AccessSecret", OAuth.User.Secret = tokens.Secret);
+            setting.Save();
+
+            MyUserInfo = getMyUserInfo();
+            Status = MyUserInfo == null ? UserStatus.INVALID_CREDITIONAL : UserStatus.LOGIN_SUCCESS;
+        }     
 
         private UserInfoObject getMyUserInfo()
         {
@@ -100,24 +99,23 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-
-
+                
                 if (resStream != null)
                     using (StreamReader reader = new StreamReader(resStream))
-                        Console.WriteLine(reader.ReadToEnd());
+                        MainForm.Instance.Log(reader.ReadToEnd());
             }
 
             return json.Length > 0 ? JsonConvert.DeserializeObject<UserInfoObject>(json.ToString()) : null;
         }
 
-        public string getMyFriends(string id, string cursor)
+        public UserIdsObject getMyFriends(string cursor)
         {
             StringBuilder json = new StringBuilder();
 
             try
             {
                 HttpWebRequest req = OAuth.MakeRequest("GET",
-                    "https://api.twitter.com/1.1/friends/ids.json?stringify_ids=true&cursor=" + cursor + "&user_id=" + id + "&count=5000");
+                    "https://api.twitter.com/1.1/friends/ids.json?stringify_ids=true&cursor=" + cursor + "&user_id=" + MyUserInfo.id_str + "&count=5000");
 
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream != null)
@@ -127,27 +125,27 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return json.ToString();
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id, cursor = cursor};
-                }
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = MyUserInfo.id_str, cursor = cursor };
+                    }
             }
 
-            return json.ToString();
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
         }
 
-        public string getMyFollowers(string id, string cursor)
+        public UserIdsObject getMyFollowers(string cursor)
         {
             StringBuilder json = new StringBuilder();
 
             try
             {
                 HttpWebRequest req = OAuth.MakeRequest("GET",
-                    "https://api.twitter.com/1.1/followers/ids.json?stringify_ids=true&cursor=" + cursor + "&user_id=" + id + "&count=5000");
+                    "https://api.twitter.com/1.1/followers/ids.json?stringify_ids=true&cursor=" + cursor + "&user_id=" + MyUserInfo.id_str + "&count=5000");
 
                 Stream resStream = req.GetResponse().GetResponseStream();
                 if (resStream != null)
@@ -157,20 +155,20 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return json.ToString();
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id, cursor = cursor};
-                }
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = MyUserInfo.id_str, cursor = cursor };
+                    }
             }
 
-            return json.ToString();
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
         }
 
-        public string getMyBlockList(string cursor)
+        public UserIdsObject getMyBlockList(string cursor)
         {
             StringBuilder json = new StringBuilder();
 
@@ -187,20 +185,20 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return json.ToString();
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {cursor = cursor};
-                }
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = MyUserInfo.id_str, cursor = cursor };
+                    }
             }
 
-            return json.ToString();
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
         }
 
-        public string getMyMuteList(string cursor)
+        public UserIdsObject getMyMuteList(string cursor)
         {
             StringBuilder json = new StringBuilder();
 
@@ -216,20 +214,20 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return json.ToString();
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {cursor = cursor};
-                }
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = MyUserInfo.id_str, cursor = cursor };
+                    }
             }
 
-            return json.ToString();
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
         }
 
-        public string getFollowers(string username, string cursor)
+        public UserIdsObject getFollowers(string username, string cursor)
         {
             StringBuilder json = new StringBuilder();
 
@@ -247,21 +245,20 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return json.ToString();
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88"))
-                        throw new RateLimitException {target = username, cursor = cursor};
-                }
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = username, cursor = cursor };
+                    }
             }
 
-            return json.ToString();
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
         }
 
-        public string searchPhase(string phase, bool newReq)
+        public SearchResultObject searchPhase(string phase, bool newReq)
         {
             StringBuilder json = new StringBuilder();
 
@@ -281,22 +278,23 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return json.ToString();
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
 
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = phase};
-                }
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = phase };
+                    }
             }
 
-            return json.ToString();
+            return json.Length > 0 ? JsonConvert.DeserializeObject<SearchResultObject>(json.ToString()) : null;
         }
 
-        public string Block(string id, bool isScreenName = false)
+        public UserInfoObject Block(string id, bool isScreenName = false)
         {
-            Console.WriteLine("Block user : " + id);
+            StringBuilder json = new StringBuilder();
+
             object obj;
             if (isScreenName)
                 obj = new {screen_name = id, include_entities = false, skip_status = true};
@@ -310,27 +308,28 @@ namespace BlockThemAll
                 HttpWebRequest req = OAuth.MakeRequest("POST", "https://api.twitter.com/1.1/blocks/create.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    UserInfoObject result = JsonConvert.DeserializeObject<UserInfoObject>(reader.ReadToEnd());
-                    return result.id_str;
-                }
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        json.AppendLine(reader.ReadToEnd());
             }
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
+                    }
             }
 
-            return string.Empty;
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserInfoObject>(json.ToString()) : null;
         }
 
-        public string UnBlock(string id, bool isScreenName = false)
+        public UserInfoObject UnBlock(string id, bool isScreenName = false)
         {
-            Console.WriteLine("UnBlock user : " + id);
+            StringBuilder json = new StringBuilder();
+
             object obj;
             if (isScreenName)
                 obj = new {screen_name = id, include_entities = false, skip_status = true};
@@ -344,27 +343,27 @@ namespace BlockThemAll
                 HttpWebRequest req = OAuth.MakeRequest("POST", "https://api.twitter.com/1.1/blocks/destroy.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    UserInfoObject result = JsonConvert.DeserializeObject<UserInfoObject>(reader.ReadToEnd());
-                    return result.id_str;
-                }
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        json.AppendLine(reader.ReadToEnd());
             }
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
+                    }
             }
 
-            return string.Empty;
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserInfoObject>(json.ToString()) : null;
         }
 
-        public string Mute(string id)
+        public UserInfoObject Mute(string id)
         {
-            Console.WriteLine("Mute user : " + id);
+            StringBuilder json = new StringBuilder();
             object obj = new {user_id = id};
 
             try
@@ -374,32 +373,28 @@ namespace BlockThemAll
                 HttpWebRequest req = OAuth.MakeRequest("POST", "https://api.twitter.com/1.1/mutes/users/create.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    UserInfoObject result = JsonConvert.DeserializeObject<UserInfoObject>(reader.ReadToEnd());
-                    return result.id_str;
-                }
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        json.AppendLine(reader.ReadToEnd());
             }
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
-
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id};
-                }
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = id };
+                    }
             }
 
-            return string.Empty;
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserInfoObject>(json.ToString()) : null;
         }
 
-        public string UnMute(string id)
+        public UserInfoObject UnMute(string id)
         {
-            Console.WriteLine("UnMute user : " + id);
+            StringBuilder json = new StringBuilder();
             object obj = new {user_id = id};
 
             try
@@ -409,27 +404,23 @@ namespace BlockThemAll
                 HttpWebRequest req = OAuth.MakeRequest("POST", "https://api.twitter.com/1.1/mutes/users/destroy.json", obj);
                 req.GetRequestStream().Write(buff, 0, buff.Length);
                 Stream resStream = req.GetResponse().GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    UserInfoObject result = JsonConvert.DeserializeObject<UserInfoObject>(reader.ReadToEnd());
-                    return result.id_str;
-                }
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        json.AppendLine(reader.ReadToEnd());
             }
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return string.Empty;
-                using (StreamReader reader = new StreamReader(resStream))
-                {
-                    string response = reader.ReadToEnd();
-                    Console.WriteLine(response);
-
-                    if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException {target = id};
-                }
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = id };
+                    }
             }
 
-            return string.Empty;
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserInfoObject>(json.ToString()) : null;
         }
     }
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
@@ -6,7 +7,7 @@ using System.Text.RegularExpressions;
 
 namespace BlockThemAll
 {
-    internal class IniSettings
+    public class IniSettings : IEnumerable<KeyValuePair<string, Dictionary<string, object>>>
     {
         private readonly FileInfo ini;
         private readonly Dictionary<string, Dictionary<string, object>> settings = new Dictionary<string, Dictionary<string, object>>();
@@ -67,6 +68,11 @@ namespace BlockThemAll
                 settings[section][key] = value;
         }
 
+        internal void DeleteSection(string section)
+        {
+            settings.Remove(section);
+        }
+
         internal void Save()
         {
             StringBuilder sb = new StringBuilder();
@@ -78,6 +84,17 @@ namespace BlockThemAll
             }
 
             File.WriteAllText(ini.Name, sb.ToString());
+        }
+
+        public IEnumerator<KeyValuePair<string, Dictionary<string, object>>> GetEnumerator()
+        {
+            foreach (KeyValuePair<string, Dictionary<string, object>> setting in settings)
+                yield return setting;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
         }
     }
 }

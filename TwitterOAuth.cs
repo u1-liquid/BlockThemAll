@@ -243,9 +243,9 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return null;
-                using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        MainForm.Instance.Log(reader.ReadToEnd());
                 return null;
             }
         }
@@ -279,9 +279,9 @@ namespace BlockThemAll
             catch (WebException ex)
             {
                 Stream resStream = ex.Response?.GetResponseStream();
-                if (resStream == null) return null;
-                using (StreamReader reader = new StreamReader(resStream))
-                    Console.WriteLine(reader.ReadToEnd());
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        MainForm.Instance.Log(reader.ReadToEnd());
                 return null;
             }
         }
