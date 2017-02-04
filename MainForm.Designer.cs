@@ -79,9 +79,10 @@
             this.buttonrefreshmyinfo = new System.Windows.Forms.Button();
             this.buttonstartstop = new System.Windows.Forms.Button();
             this.buttonpausecontinue = new System.Windows.Forms.Button();
-            this.buttonskip = new System.Windows.Forms.Button();
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.skipThisToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
+            this.removeAPIKeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripStatusLabelDummy = new System.Windows.Forms.ToolStripStatusLabel();
             toolStripStatusLabel3 = new System.Windows.Forms.ToolStripStatusLabel();
             this.menuStrip1.SuspendLayout();
@@ -179,10 +180,12 @@
             // 
             this.manageAPIKeysToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.registerAPIKeyToolStripMenuItem,
+            this.removeAPIKeyToolStripMenuItem,
             this.toolStripSeparator1});
             this.manageAPIKeysToolStripMenuItem.Name = "manageAPIKeysToolStripMenuItem";
             this.manageAPIKeysToolStripMenuItem.Size = new System.Drawing.Size(196, 26);
             this.manageAPIKeysToolStripMenuItem.Text = "Manage API keys";
+            this.manageAPIKeysToolStripMenuItem.DropDownOpening += new System.EventHandler(this.manageAPIKeysToolStripMenuItem_DropDownOpening);
             this.manageAPIKeysToolStripMenuItem.DropDownItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.manageAPIKeysToolStripMenuItem_DropDownItemClicked);
             // 
             // registerAPIKeyToolStripMenuItem
@@ -291,8 +294,10 @@
             this.textBox1.ScrollBars = System.Windows.Forms.ScrollBars.Both;
             this.textBox1.Size = new System.Drawing.Size(939, 354);
             this.textBox1.TabIndex = 0;
+            this.textBox1.TextChanged += new System.EventHandler(this.textBox1_TextChanged);
             this.textBox1.DragDrop += new System.Windows.Forms.DragEventHandler(this.textBox1_DragDrop);
             this.textBox1.DragEnter += new System.Windows.Forms.DragEventHandler(this.textBox1_DragEnter);
+            this.textBox1.KeyDown += new System.Windows.Forms.KeyEventHandler(this.textBox1_KeyDown);
             // 
             // tabPage2
             // 
@@ -559,33 +564,22 @@
             // 
             this.buttonstartstop.Location = new System.Drawing.Point(53, 148);
             this.buttonstartstop.Name = "buttonstartstop";
-            this.buttonstartstop.Size = new System.Drawing.Size(75, 23);
+            this.buttonstartstop.Size = new System.Drawing.Size(176, 23);
             this.buttonstartstop.TabIndex = 5;
-            this.buttonstartstop.Text = "Start";
+            this.buttonstartstop.Text = "Preview";
             this.buttonstartstop.UseVisualStyleBackColor = true;
             this.buttonstartstop.Click += new System.EventHandler(this.buttonstartstop_Click);
             // 
             // buttonpausecontinue
             // 
             this.buttonpausecontinue.Enabled = false;
-            this.buttonpausecontinue.Location = new System.Drawing.Point(186, 148);
+            this.buttonpausecontinue.Location = new System.Drawing.Point(243, 148);
             this.buttonpausecontinue.Name = "buttonpausecontinue";
-            this.buttonpausecontinue.Size = new System.Drawing.Size(75, 23);
+            this.buttonpausecontinue.Size = new System.Drawing.Size(176, 23);
             this.buttonpausecontinue.TabIndex = 5;
             this.buttonpausecontinue.Text = "Pause";
             this.buttonpausecontinue.UseVisualStyleBackColor = true;
             this.buttonpausecontinue.Click += new System.EventHandler(this.buttonpausecontinue_Click);
-            // 
-            // buttonskip
-            // 
-            this.buttonskip.Enabled = false;
-            this.buttonskip.Location = new System.Drawing.Point(317, 148);
-            this.buttonskip.Name = "buttonskip";
-            this.buttonskip.Size = new System.Drawing.Size(75, 23);
-            this.buttonskip.TabIndex = 5;
-            this.buttonskip.Text = "Skip";
-            this.buttonskip.UseVisualStyleBackColor = true;
-            this.buttonskip.Click += new System.EventHandler(this.buttonskip_Click);
             // 
             // contextMenuStrip1
             // 
@@ -602,13 +596,25 @@
             this.skipThisToolStripMenuItem.Text = "Skip this";
             this.skipThisToolStripMenuItem.Click += new System.EventHandler(this.skipThisToolStripMenuItem_Click);
             // 
+            // backgroundWorker1
+            // 
+            this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker1_DoWork);
+            this.backgroundWorker1.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.backgroundWorker1_ProgressChanged);
+            this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker1_RunWorkerCompleted);
+            // 
+            // removeAPIKeyToolStripMenuItem
+            // 
+            this.removeAPIKeyToolStripMenuItem.Name = "removeAPIKeyToolStripMenuItem";
+            this.removeAPIKeyToolStripMenuItem.Size = new System.Drawing.Size(190, 26);
+            this.removeAPIKeyToolStripMenuItem.Text = "Remove API key";
+            this.removeAPIKeyToolStripMenuItem.DropDownItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.removeAPIKeyToolStripMenuItem_DropDownItemClicked);
+            // 
             // MainForm
             // 
             this.AllowDrop = true;
             this.AutoScaleDimensions = new System.Drawing.SizeF(8F, 16F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(977, 649);
-            this.Controls.Add(this.buttonskip);
             this.Controls.Add(this.buttonpausecontinue);
             this.Controls.Add(this.buttonstartstop);
             this.Controls.Add(this.groupBox2);
@@ -672,7 +678,6 @@
         private System.Windows.Forms.Button buttonrefreshmyinfo;
         private System.Windows.Forms.Button buttonstartstop;
         private System.Windows.Forms.Button buttonpausecontinue;
-        private System.Windows.Forms.Button buttonskip;
         private System.Windows.Forms.CheckBox cbAutoRetryApiLimit;
         private System.Windows.Forms.ToolStripMenuItem buildBlockDBToolStripMenuItem;
         private System.Windows.Forms.CheckBox cbMuteUserOnly;
@@ -693,5 +698,7 @@
         private System.Windows.Forms.ImageList imageList1;
         private System.Windows.Forms.ContextMenuStrip contextMenuStrip1;
         private System.Windows.Forms.ToolStripMenuItem skipThisToolStripMenuItem;
+        private System.ComponentModel.BackgroundWorker backgroundWorker1;
+        private System.Windows.Forms.ToolStripMenuItem removeAPIKeyToolStripMenuItem;
     }
 }

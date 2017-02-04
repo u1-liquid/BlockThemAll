@@ -27,6 +27,7 @@ namespace BlockThemAll
         public HashSet<string> followerDB = new HashSet<string>();
         private readonly object userdatarefreshlock = new object();
         private readonly object blockdbbuildlock = new object();
+        public WorkStatus workStatus = WorkStatus.READY;
 
         public MainForm()
         {
@@ -50,6 +51,11 @@ namespace BlockThemAll
         public void SetStatusLabel(string text)
         {
             toolStripStatusLabel2.Text = text;
+        }
+
+        public void SetProgressLabel(string text)
+        {
+            toolStripStatusLabel1.Text = text;
         }
 
         private void textBox1_DragDrop(object sender, DragEventArgs e)
@@ -109,6 +115,7 @@ namespace BlockThemAll
             settings = new IniSettings(new FileInfo("BlockThemAll.ini"));
             twitter = TwitterApi.Login(settings);
             SetStatusLabel(twitter.Status.ToString());
+            SetProgressLabel(workStatus.ToString());
             ProcessTwitterLogin();
 
             foreach (KeyValuePair<string, Dictionary<string, object>> item in settings)
@@ -197,7 +204,7 @@ namespace BlockThemAll
                     }
                     break;
                 case UserStatus.NO_CREDITIONAL:
-                    MessageBox.Show(this, "Unable to access your account! Please try login again.", "No Creditional", MessageBoxButtons.OK,
+                    MessageBox.Show(this, @"Unable to access your account! Please try login again.", @"No Creditional", MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
                     ProcessTwitterLogin(SettingsSection);
                     break;
@@ -211,58 +218,85 @@ namespace BlockThemAll
                     }
                     break;
                 case UserStatus.INVALID_CREDITIONAL:
-                    MessageBox.Show(this, "Unable to access your account! Please try login from menu.", "Invalid Creditional",
+                    MessageBox.Show(this, @"Unable to access your account! Please try login from menu.", @"Invalid Creditional",
                         MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     break;
                 case UserStatus.LOGIN_SUCCESS:
                     string apikey = SettingsSection.Equals("Authenticate") ? "Default" : SettingsSection;
                     twitters.Add(apikey, twitter);
-                    manageAPIKeysToolStripMenuItem.DropDownItems.Add(apikey);
+                    manageAPIKeysToolStripMenuItem.DropDownItems.Add(new ToolStripMenuItem(apikey) { Name = apikey });
+                    removeAPIKeyToolStripMenuItem.DropDownItems.Add(new ToolStripMenuItem(apikey) { Name = apikey });
 
                     loginToolStripMenuItem.Enabled = false;
-                    loginToolStripMenuItem.Text = "Logged in as " + twitter.MyUserInfo.screen_name;
+                    loginToolStripMenuItem.Text = @"Logged in as " + twitter.MyUserInfo.screen_name;
                     break;
             }
         }
-        
+
+        private void manageAPIKeysToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
+        {
+            string current = twitters.FirstOrDefault(x => ReferenceEquals(x.Value, twitter)).Key;
+            foreach (object dropDownItem in manageAPIKeysToolStripMenuItem.DropDownItems)
+            {
+                ToolStripMenuItem item = dropDownItem as ToolStripMenuItem;
+                if (item != null) item.Checked = item.Text.Equals(current);
+            }
+        }
+
         private void manageAPIKeysToolStripMenuItem_DropDownItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
-            if (e.ClickedItem == registerAPIKeyToolStripMenuItem) return;
+            if (e.ClickedItem.GetType() != typeof(ToolStripMenuItem) || e.ClickedItem == registerAPIKeyToolStripMenuItem || e.ClickedItem == removeAPIKeyToolStripMenuItem) return;
+            
+            twitter = twitters[e.ClickedItem.Text];
+            foreach (object dropDownItem in manageAPIKeysToolStripMenuItem.DropDownItems)
+            {
+                ToolStripMenuItem item = dropDownItem as ToolStripMenuItem;
+                if (item != null) item.Checked = item.Text.Equals(e.ClickedItem.Text);
+            }
+        }
 
+        private void removeAPIKeyToolStripMenuItem_DropDownItemClicked(object sender, ToolStripItemClickedEventArgs e)
+        {
             if (e.ClickedItem.Text.Equals("Default"))
             {
                 if (DialogResult.Yes ==
-                    MessageBox.Show(this, "Do you want to change default API key?", "change key", MessageBoxButtons.YesNo,
+                    MessageBox.Show(this, @"Do you want to change default API key?", @"Change key", MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question))
                 {
                     twitters.Remove("Default");
                     settings.DeleteSection("Authenticate");
-                    manageAPIKeysToolStripMenuItem.DropDownItems.Remove(e.ClickedItem);
+                    manageAPIKeysToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
+                    removeAPIKeyToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
 
                     twitter = TwitterApi.Login(settings);
                     SetStatusLabel(twitter.Status.ToString());
                     ProcessTwitterLogin();
+
+                    if (!twitters.ContainsValue(twitter)) twitter = twitters.FirstOrDefault().Value;
                 }
             }
             else
             {
                 if (DialogResult.Yes ==
-                    MessageBox.Show(this, "Do you want to remove " + e.ClickedItem.Text + " API key?", "Remove key", MessageBoxButtons.YesNo,
+                    MessageBox.Show(this, @"Do you want to remove " + e.ClickedItem.Text + @" API key?", @"Remove key", MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question))
                 {
+                    TwitterApi target = twitters[e.ClickedItem.Text];
                     twitters.Remove(e.ClickedItem.Text);
+                    if (ReferenceEquals(twitter, target)) twitter = twitters.FirstOrDefault().Value;
                     settings.DeleteSection(e.ClickedItem.Text);
-                    manageAPIKeysToolStripMenuItem.DropDownItems.Remove(e.ClickedItem);
+                    manageAPIKeysToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
+                    removeAPIKeyToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
                 }
             }
 
-            settings.Save();
-
-            if (twitters.Count == 0)
+            if (twitters.Count == 0 || !twitters.ContainsKey("Default"))
             {
                 loginToolStripMenuItem.Enabled = true;
-                loginToolStripMenuItem.Text = "Login";
+                loginToolStripMenuItem.Text = @"Login";
             }
+
+            settings.Save();
         }
 
         private void registerAPIKeyToolStripMenuItem_Click(object sender, EventArgs e)
@@ -280,7 +314,7 @@ namespace BlockThemAll
         {
             lock (userdatarefreshlock)
             {
-                labellastupdate.Text = "in progress...";
+                labellastupdate.Text = @"in progress...";
                 followingDB.Clear();
                 followerDB.Clear();
 
@@ -339,7 +373,7 @@ namespace BlockThemAll
 
                     Action waitforratelimitlabelupdateaction = () =>
                     {
-                        labelknownblocks.Text += " (Rate Limit, Retry at : " + DateTime.Now.AddMinutes(15).ToString("hh:mm:ss") + ")";
+                        labelknownblocks.Text += @" (Rate Limit, Retry at : " + DateTime.Now.AddMinutes(15).ToString("hh:mm:ss") + @")";
                     };
 
                     while (true)
@@ -372,7 +406,7 @@ namespace BlockThemAll
         {
             switch (buttonstartstop.Text)
             {
-                case "Start":
+                case "Preview":
                     treeView1.Nodes.Clear();
                     List<string> targets = new List<string>(textBox1.Text.Split(new [] {"\r\n", "\n"}, StringSplitOptions.RemoveEmptyEntries));
                     foreach (string target in targets)
@@ -388,15 +422,38 @@ namespace BlockThemAll
                             type = EntityType.FOLLOWING_BLOCK;
                         if (target.StartsWith("-!@"))
                             type = EntityType.FOLLOWING_UNBLOCK;
-
-                        string t = target.TrimStart('-', '!', '@');
+                        if (target.StartsWith("&"))
+                            type = EntityType.REPLY_BLOCK;
+                        if (target.StartsWith("-&"))
+                            type = EntityType.REPLY_UNBLOCK;
+                        if (target.StartsWith("%"))
+                            type = EntityType.RETWEET_BLOCK;
+                        if (target.StartsWith("-%"))
+                            type = EntityType.RETWEET_UNBLOCK;
+                        
+                        if (Settings.Default.MuteUserOnly) type += (int)EntityType.BLOCK_TO_MUTE;
+                        
+                        string t = target.TrimStart('-', '!', '@', '&', '%');
 
                         TreeNode node = new TreeNode($"({type}) {t}") {Tag = new TreeEntity(type, t), ContextMenuStrip = contextMenuStrip1};
                         treeView1.Nodes.Add(node);
                     }
                     tabControl1.SelectedIndex = 1;
+                    workStatus = WorkStatus.PREVIEW;
+                    buttonstartstop.Text = @"Start";
+                    break;
+                case "Start":
+                    workStatus = WorkStatus.STARTING;
+                    backgroundWorker1.RunWorkerAsync();
+                    buttonstartstop.Text = @"Stop";
+                    buttonpausecontinue.Enabled = true;
                     break;
                 case "Stop":
+                    workStatus = WorkStatus.STOPPING;
+                    backgroundWorker1.CancelAsync();
+                    buttonstartstop.Text = @"Preview";
+                    buttonpausecontinue.Text = @"Pause";
+                    buttonpausecontinue.Enabled = false;
                     break;
             }
         }
@@ -406,15 +463,14 @@ namespace BlockThemAll
             switch (buttonpausecontinue.Text)
             {
                 case "Pause":
+                    workStatus = WorkStatus.PAUSED;
+                    buttonpausecontinue.Text = @"Continue";
                     break;
                 case "Continue":
+                    workStatus = WorkStatus.STARTED;
+                    buttonpausecontinue.Text = @"Pause";
                     break;
             }
-        }
-
-        private void buttonskip_Click(object sender, EventArgs e)
-        {
-
         }
 
         private void cbSettings_CheckedChanged(object sender, EventArgs e)
@@ -463,6 +519,47 @@ namespace BlockThemAll
             {
                 // ignore
             }
+        }
+
+        private void textBox1_TextChanged(object sender, EventArgs e)
+        {
+            if (workStatus == WorkStatus.PREVIEW)
+            {
+                workStatus = WorkStatus.READY;
+                buttonstartstop.Text = @"Preview";
+            }   
+        }
+
+        private void textBox1_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Control && e.KeyCode == Keys.A)
+            {
+                ((TextBox) sender)?.SelectAll();
+            }
+        }
+
+        private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
+        {
+
+        }
+
+        private void backgroundWorker1_ProgressChanged(object sender, ProgressChangedEventArgs e)
+        {
+            Action action = () =>
+            {
+                if (toolStripProgressBar?.ProgressBar != null) toolStripProgressBar.ProgressBar.Value = e.ProgressPercentage;
+                toolStripStatusLabel1.Text = workStatus.ToString();
+            };
+
+            if (InvokeRequired)
+                BeginInvoke(action);
+            else
+                action.BeginInvoke(null, null);
+        }
+
+        private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+
         }
     }
 }

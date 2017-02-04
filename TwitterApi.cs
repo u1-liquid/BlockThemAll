@@ -258,6 +258,36 @@ namespace BlockThemAll
             return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
         }
 
+        public UserIdsObject getRetweeters(string tweetid, string cursor)
+        {
+            StringBuilder json = new StringBuilder();
+
+            try
+            {
+                HttpWebRequest req = OAuth.MakeRequest("GET",
+                    "https://api.twitter.com/1.1/statuses/retweeters/ids.json?stringify_ids=true&id=" + tweetid + "&cursor=" + cursor + "&count=100");
+
+                Stream resStream = req.GetResponse().GetResponseStream();
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                        json.AppendLine(reader.ReadToEnd());
+            }
+            catch (WebException ex)
+            {
+                Stream resStream = ex.Response?.GetResponseStream();
+                if (resStream != null)
+                    using (StreamReader reader = new StreamReader(resStream))
+                    {
+                        string response = reader.ReadToEnd();
+                        MainForm.Instance.Log(response);
+
+                        if (Regex.IsMatch(response, @"(?i)""code""\s*:\s*88")) throw new RateLimitException { target = tweetid, cursor = cursor };
+                    }
+            }
+
+            return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
+        }
+
         public SearchResultObject searchPhase(string phase, bool newReq)
         {
             StringBuilder json = new StringBuilder();
@@ -443,6 +473,8 @@ namespace BlockThemAll
     {
         public long id { get; set; }
         public string id_str { get; set; }
+        public long in_reply_to_status_id { get; set; }
+        public string in_reply_to_status_id_str { get; set; }
         public UserInfoObject user { get; set; }
     }
 

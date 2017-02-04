@@ -6,19 +6,13 @@ using System.Threading.Tasks;
 
 namespace BlockThemAll
 {
-    public enum ApplicationStatus
-    {
-        Ready,
-        Precessing
-    }
-
     public enum WorkStatus
     {
         READY,
+        PREVIEW,
         STARTING,
         STARTED,
         PAUSED,
-        CONTINUING,
         STOPPING,
         STOPPED,
         DONE,
