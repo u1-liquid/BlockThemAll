@@ -1,18 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
-using System.Data;
 using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Net.Configuration;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 using BlockThemAll.Properties;
-using Newtonsoft.Json;
 
 namespace BlockThemAll
 {
@@ -320,27 +316,51 @@ namespace BlockThemAll
 
                 Task.Factory.StartNew(() =>
                 {
-                    UserIdsObject result = twitter.getMyFriends("-1");
-                    while (result != null)
-                    {
-                        followingDB.UnionWith(result.ids);
-                        if (result.next_cursor == 0)
-                            break;
-                        result = twitter.getMyFriends(result.next_cursor_str);
-                    }
+                    UserIdsObject result;
+                    string cursor = "-1";
 
-                    result = twitter.getMyFollowers("-1");
-                    while (result != null)
-                    {
-                        followerDB.UnionWith(result.ids);
-                        if (result.next_cursor == 0)
+                    while(true)
+                        try
+                        {
+                            result = twitter.getMyFriends(cursor);
+                            while (result != null)
+                            {
+                                followingDB.UnionWith(result.ids);
+                                if (result.next_cursor == 0)
+                                    break;
+                                result = twitter.getMyFriends(cursor = result.next_cursor_str);
+                            }
+
                             break;
-                        result = twitter.getMyFollowers(result.next_cursor_str);
-                    }
+                        }
+                        catch (RateLimitException)
+                        {
+                            if (Settings.Default.AutoRetryApiLimit) Thread.Sleep(TimeSpan.FromMinutes(15));
+                        }
+
+                    cursor = "-1";
+                    while(true)
+                        try
+                        {
+                            result = twitter.getMyFollowers(cursor);
+                            while (result != null)
+                            {
+                                followerDB.UnionWith(result.ids);
+                                if (result.next_cursor == 0)
+                                    break;
+                                result = twitter.getMyFollowers(cursor = result.next_cursor_str);
+                            }
+
+                            break;
+                        }
+                        catch (RateLimitException)
+                        {
+                            if (Settings.Default.AutoRetryApiLimit) Thread.Sleep(TimeSpan.FromMinutes(15));
+                        }
 
                     Action action = () =>
                     {
-                        labelusername.Text = "@" + twitter.MyUserInfo.screen_name + " / " + twitter.MyUserInfo.id_str;
+                        labelusername.Text = @"@" + twitter.MyUserInfo.screen_name + @" / " + twitter.MyUserInfo.id_str;
                         labelfollowings.Text = followingDB.Count.ToString();
                         labelfollowers.Text = followerDB.Count.ToString();
                         labellastupdate.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
