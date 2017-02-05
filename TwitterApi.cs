@@ -1,9 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Net;
-using System.Runtime.Remoting;
 using System.Runtime.Serialization;
 using System.Security.Permissions;
 using System.Text;
@@ -286,6 +285,49 @@ namespace BlockThemAll
             }
 
             return json.Length > 0 ? JsonConvert.DeserializeObject<UserIdsObject>(json.ToString()) : null;
+        }
+
+        public List<UserInfoObject> lookupUsers(string[] targets, bool isScreenName = false)
+        {
+            List<UserInfoObject> result = new List<UserInfoObject>();
+
+            foreach (List<string> ts in targets.Select((x, i) => new {Index = i, Value = x}).GroupBy(x => x.Index / 100).Select(x => x.Select(v => v.Value).ToList()))
+            {
+                StringBuilder json = new StringBuilder();
+
+                object obj;
+                if (isScreenName)
+                    obj = new { screen_name = string.Join(",", ts), include_entities = false };
+                else
+                    obj = new { user_id = string.Join(",", ts), include_entities = false };
+
+                try
+                {
+                    byte[] buff = Encoding.UTF8.GetBytes(TwitterOAuth.ToString(obj));
+
+                    HttpWebRequest req = OAuth.MakeRequest("POST", "https://api.twitter.com/1.1/users/lookup.json", obj);
+                    req.GetRequestStream().Write(buff, 0, buff.Length);
+                    Stream resStream = req.GetResponse().GetResponseStream();
+                    if (resStream != null)
+                        using (StreamReader reader = new StreamReader(resStream))
+                            json.AppendLine(reader.ReadToEnd());
+                }
+                catch (WebException ex)
+                {
+                    Stream resStream = ex.Response?.GetResponseStream();
+                    if (resStream != null)
+                        using (StreamReader reader = new StreamReader(resStream))
+                        {
+                            string response = reader.ReadToEnd();
+                            MainForm.Instance.Log(response);
+                        }
+                }
+
+                if (json.Length > 0)
+                    result.AddRange(JsonConvert.DeserializeObject<List<UserInfoObject>>(json.ToString()));
+            }
+
+            return result;
         }
 
         public SearchResultObject searchPhase(string phase, bool newReq)
