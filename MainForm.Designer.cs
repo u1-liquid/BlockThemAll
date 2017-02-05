@@ -32,6 +32,9 @@
             System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelDummy;
             System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabel3;
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+            System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Followings");
+            System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Followers");
+            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("UserDefined");
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.loadTargetsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -42,6 +45,7 @@
             this.buildBlockDBToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.manageAPIKeysToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.registerAPIKeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.removeAPIKeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
@@ -57,6 +61,8 @@
             this.treeView1 = new System.Windows.Forms.TreeView();
             this.imageList1 = new System.Windows.Forms.ImageList(this.components);
             this.tabPage3 = new System.Windows.Forms.TabPage();
+            this.treeView2 = new System.Windows.Forms.TreeView();
+            this.tabPage4 = new System.Windows.Forms.TabPage();
             this.listBox1 = new System.Windows.Forms.ListBox();
             this.groupBox1 = new System.Windows.Forms.GroupBox();
             this.cbMuteUserOnly = new System.Windows.Forms.CheckBox();
@@ -82,7 +88,11 @@
             this.contextMenuStrip1 = new System.Windows.Forms.ContextMenuStrip(this.components);
             this.skipThisToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
-            this.removeAPIKeyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.contextMenuStrip2 = new System.Windows.Forms.ContextMenuStrip(this.components);
+            this.addToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.deleteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
+            this.importFromListToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             toolStripStatusLabelDummy = new System.Windows.Forms.ToolStripStatusLabel();
             toolStripStatusLabel3 = new System.Windows.Forms.ToolStripStatusLabel();
             this.menuStrip1.SuspendLayout();
@@ -91,9 +101,11 @@
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
             this.tabPage3.SuspendLayout();
+            this.tabPage4.SuspendLayout();
             this.groupBox1.SuspendLayout();
             this.groupBox2.SuspendLayout();
             this.contextMenuStrip1.SuspendLayout();
+            this.contextMenuStrip2.SuspendLayout();
             this.SuspendLayout();
             // 
             // toolStripStatusLabelDummy
@@ -195,6 +207,13 @@
             this.registerAPIKeyToolStripMenuItem.Text = "Register API key";
             this.registerAPIKeyToolStripMenuItem.Click += new System.EventHandler(this.registerAPIKeyToolStripMenuItem_Click);
             // 
+            // removeAPIKeyToolStripMenuItem
+            // 
+            this.removeAPIKeyToolStripMenuItem.Name = "removeAPIKeyToolStripMenuItem";
+            this.removeAPIKeyToolStripMenuItem.Size = new System.Drawing.Size(190, 26);
+            this.removeAPIKeyToolStripMenuItem.Text = "Remove API key";
+            this.removeAPIKeyToolStripMenuItem.DropDownItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.removeAPIKeyToolStripMenuItem_DropDownItemClicked);
+            // 
             // toolStripSeparator1
             // 
             this.toolStripSeparator1.Name = "toolStripSeparator1";
@@ -244,6 +263,7 @@
             this.tabControl1.Controls.Add(this.tabPage1);
             this.tabControl1.Controls.Add(this.tabPage2);
             this.tabControl1.Controls.Add(this.tabPage3);
+            this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Location = new System.Drawing.Point(12, 200);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
@@ -260,7 +280,7 @@
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage1.Size = new System.Drawing.Size(945, 392);
             this.tabPage1.TabIndex = 0;
-            this.tabPage1.Text = "Targets";
+            this.tabPage1.Text = "Input";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
             // buttonresettarget
@@ -307,7 +327,7 @@
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage2.Size = new System.Drawing.Size(945, 392);
             this.tabPage2.TabIndex = 1;
-            this.tabPage2.Text = "TreeView";
+            this.tabPage2.Text = "Targets";
             this.tabPage2.UseVisualStyleBackColor = true;
             // 
             // treeView1
@@ -334,14 +354,44 @@
             // 
             // tabPage3
             // 
-            this.tabPage3.Controls.Add(this.listBox1);
+            this.tabPage3.Controls.Add(this.treeView2);
             this.tabPage3.Location = new System.Drawing.Point(4, 25);
             this.tabPage3.Name = "tabPage3";
             this.tabPage3.Padding = new System.Windows.Forms.Padding(3);
             this.tabPage3.Size = new System.Drawing.Size(945, 392);
             this.tabPage3.TabIndex = 2;
-            this.tabPage3.Text = "LogView";
+            this.tabPage3.Text = "Whitelists";
             this.tabPage3.UseVisualStyleBackColor = true;
+            // 
+            // treeView2
+            // 
+            this.treeView2.CheckBoxes = true;
+            this.treeView2.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.treeView2.Location = new System.Drawing.Point(3, 3);
+            this.treeView2.Name = "treeView2";
+            treeNode1.Name = "Followings";
+            treeNode1.Text = "Followings";
+            treeNode2.Name = "Followers";
+            treeNode2.Text = "Followers";
+            treeNode3.Name = "UserDefined";
+            treeNode3.Text = "UserDefined";
+            this.treeView2.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
+            treeNode1,
+            treeNode2,
+            treeNode3});
+            this.treeView2.Size = new System.Drawing.Size(939, 386);
+            this.treeView2.TabIndex = 0;
+            // 
+            // tabPage4
+            // 
+            this.tabPage4.Controls.Add(this.listBox1);
+            this.tabPage4.Location = new System.Drawing.Point(4, 25);
+            this.tabPage4.Name = "tabPage4";
+            this.tabPage4.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage4.Size = new System.Drawing.Size(945, 392);
+            this.tabPage4.TabIndex = 3;
+            this.tabPage4.Text = "LogView";
+            this.tabPage4.UseVisualStyleBackColor = true;
             // 
             // listBox1
             // 
@@ -602,12 +652,39 @@
             this.backgroundWorker1.ProgressChanged += new System.ComponentModel.ProgressChangedEventHandler(this.backgroundWorker1_ProgressChanged);
             this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker1_RunWorkerCompleted);
             // 
-            // removeAPIKeyToolStripMenuItem
+            // contextMenuStrip2
             // 
-            this.removeAPIKeyToolStripMenuItem.Name = "removeAPIKeyToolStripMenuItem";
-            this.removeAPIKeyToolStripMenuItem.Size = new System.Drawing.Size(190, 26);
-            this.removeAPIKeyToolStripMenuItem.Text = "Remove API key";
-            this.removeAPIKeyToolStripMenuItem.DropDownItemClicked += new System.Windows.Forms.ToolStripItemClickedEventHandler(this.removeAPIKeyToolStripMenuItem_DropDownItemClicked);
+            this.contextMenuStrip2.ImageScalingSize = new System.Drawing.Size(20, 20);
+            this.contextMenuStrip2.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.addToolStripMenuItem,
+            this.deleteToolStripMenuItem,
+            this.toolStripSeparator2,
+            this.importFromListToolStripMenuItem});
+            this.contextMenuStrip2.Name = "contextMenuStrip2";
+            this.contextMenuStrip2.Size = new System.Drawing.Size(192, 88);
+            // 
+            // addToolStripMenuItem
+            // 
+            this.addToolStripMenuItem.Name = "addToolStripMenuItem";
+            this.addToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
+            this.addToolStripMenuItem.Text = "Add";
+            // 
+            // deleteToolStripMenuItem
+            // 
+            this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
+            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
+            this.deleteToolStripMenuItem.Text = "Delete";
+            // 
+            // toolStripSeparator2
+            // 
+            this.toolStripSeparator2.Name = "toolStripSeparator2";
+            this.toolStripSeparator2.Size = new System.Drawing.Size(188, 6);
+            // 
+            // importFromListToolStripMenuItem
+            // 
+            this.importFromListToolStripMenuItem.Name = "importFromListToolStripMenuItem";
+            this.importFromListToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
+            this.importFromListToolStripMenuItem.Text = "Import from List";
             // 
             // MainForm
             // 
@@ -637,11 +714,13 @@
             this.tabPage1.PerformLayout();
             this.tabPage2.ResumeLayout(false);
             this.tabPage3.ResumeLayout(false);
+            this.tabPage4.ResumeLayout(false);
             this.groupBox1.ResumeLayout(false);
             this.groupBox1.PerformLayout();
             this.groupBox2.ResumeLayout(false);
             this.groupBox2.PerformLayout();
             this.contextMenuStrip1.ResumeLayout(false);
+            this.contextMenuStrip2.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -700,5 +779,12 @@
         private System.Windows.Forms.ToolStripMenuItem skipThisToolStripMenuItem;
         private System.ComponentModel.BackgroundWorker backgroundWorker1;
         private System.Windows.Forms.ToolStripMenuItem removeAPIKeyToolStripMenuItem;
+        private System.Windows.Forms.TabPage tabPage4;
+        private System.Windows.Forms.TreeView treeView2;
+        private System.Windows.Forms.ContextMenuStrip contextMenuStrip2;
+        private System.Windows.Forms.ToolStripMenuItem addToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem deleteToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripSeparator2;
+        private System.Windows.Forms.ToolStripMenuItem importFromListToolStripMenuItem;
     }
 }
