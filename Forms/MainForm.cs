@@ -8,9 +8,11 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using BlockThemAll.Base;
 using BlockThemAll.Properties;
+using BlockThemAll.Twitter;
 
-namespace BlockThemAll
+namespace BlockThemAll.Forms
 {
     public partial class MainForm : Form
     {

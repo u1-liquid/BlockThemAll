@@ -6,8 +6,9 @@ using System.Reflection;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
+using BlockThemAll.Forms;
 
-namespace BlockThemAll
+namespace BlockThemAll.Twitter
 {
     public class TwitterOAuth
     {

@@ -1,18 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace BlockThemAll
+namespace BlockThemAll.Forms
 {
     public partial class LoginProgressForm : Form
     {
-        private string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + MainForm.Instance.twitter.OAuth.User.Token;
+        private readonly string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + MainForm.Instance.twitter.OAuth.User.Token;
 
         public LoginProgressForm()
         {
@@ -23,9 +16,9 @@ namespace BlockThemAll
         {
             Clipboard.SetText(authorizationUrlString);
             MessageBox.Show(this,
-                "Manual login URL has been copied into your clipboard!" + Environment.NewLine +
-                " Open your web browser and paste URL into address bar." + Environment.NewLine + "Fill the PIN code in next form.",
-                "Manual login process", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                @"Manual login URL has been copied into your clipboard!" + Environment.NewLine +
+                @" Open your web browser and paste URL into address bar." + Environment.NewLine + @"Fill the PIN code in next form.",
+                @"Manual login process", MessageBoxButtons.OK, MessageBoxIcon.Information);
             TextInputForm tiform = new TextInputForm();
             if (DialogResult.OK == tiform.ShowDialog(this))
             {

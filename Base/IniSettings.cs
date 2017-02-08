@@ -5,7 +5,7 @@ using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace BlockThemAll
+namespace BlockThemAll.Base
 {
     public class IniSettings : IEnumerable<KeyValuePair<string, Dictionary<string, object>>>
     {

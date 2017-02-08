@@ -1,4 +1,4 @@
-﻿namespace BlockThemAll
+﻿namespace BlockThemAll.Forms
 {
     partial class RegisterApiKeyForm
     {
