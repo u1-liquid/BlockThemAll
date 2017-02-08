@@ -14,19 +14,15 @@ namespace BlockThemAll
     {
         public string TargetSection = "Authenticate";
 
-        public static readonly Tuple<string, string, string>[] officialkeys = {
+        public static readonly Tuple<string, string, string>[] knownkeys = {
             new Tuple<string, string, string>(
-                "Twitter for iPhone",
-                "IQKbtAYlXLripLGPWd0HUA",
-                "GgDYlkSvaPxGxC4X8liwpUoqKwwr3lCADbz8A7ADU"
-            ), new Tuple<string, string, string>(
                 "Twitter for Android",
                 "3nVuSoBZnx6U4vzUxf5w",
                 "Bcs59EFbbsdF6Sl9Ng71smgStWEGwXXKSjYvPVt7qys"
             ), new Tuple<string, string, string>(
-                "Twitter for Google TV",
-                "iAtYJ4HpUVfIUoNnif1DA",
-                "172fOpzuZoYzNYaU3mMYvE8m8MEyLbztOdbrUolU"
+                "Twitter for iPhone",
+                "IQKbtAYlXLripLGPWd0HUA",
+                "GgDYlkSvaPxGxC4X8liwpUoqKwwr3lCADbz8A7ADU"
             ), new Tuple<string, string, string>(
                 "Twitter for iPad",
                 "CjulERsDeqhhjSme66ECg",
@@ -40,13 +36,25 @@ namespace BlockThemAll
                 "yN3DUNVO0Me63IAQdhTfCA",
                 "c768oTKdzAjIYCmpSNIdZbGaG0t6rOhSFQP0S5uC79g"
             ), new Tuple<string, string, string>(
-                "TweetDeck",
-                "yT577ApRtZw51q4NPMPPOQ",
-                "3neq3XqN5fO3obqwZoajavGFCUrC42ZfbrLXy5sCv8"
+                "Twitter for Google TV",
+                "iAtYJ4HpUVfIUoNnif1DA",
+                "172fOpzuZoYzNYaU3mMYvE8m8MEyLbztOdbrUolU"
+            ), new Tuple<string, string, string>(
+                "Tweetbot for iOS",
+                "8AeR93em84Pyum5i1QGA",
+                "ugCImRuw376Y9t9apIq6bgWGNbb1ymBrx2K5NK0ZI"
+            ), new Tuple<string, string, string>(
+                "HootSuite",
+                "w1Gybt9LP9zG46mS1X3UAw",
+                "hRIK4RWjAO4pokQCvmNCynRAY8Jc8edV1kcV2go6g"
+            ), new Tuple<string, string, string>(
+                "Instagram",
+                "7YBPrscvh0RIThrWYVeGg",
+                "sMO1vDyJ9A0xfOE6RyWNjhTUS1sNqsa7Ae14gOZnw"
             )
         };
 
-        private readonly List<Tuple<string, string, string>> presets = new List<Tuple<string, string, string>>(officialkeys);
+        private readonly List<Tuple<string, string, string>> presets = new List<Tuple<string, string, string>>(knownkeys);
 
         public RegisterApiKeyForm()
         {
@@ -71,6 +79,14 @@ namespace BlockThemAll
             comboBox1.Text = TargetSection;
             textBox1.Text = (string)MainForm.Instance.settings.GetValue(TargetSection, "ConsumerKey");
             textBox1.Text = (string)MainForm.Instance.settings.GetValue(TargetSection, "ConsumerSecret");
+
+            if (TargetSection.Equals("Authenticate") && textBox1.Text.Length == 0)
+            {
+                comboBox1.SelectedIndex = 0;
+                comboBox1_SelectionChangeCommitted(null, null);
+            }
+
+            comboBox1.Select();
         }
 
         private void comboBox1_SelectionChangeCommitted(object sender, EventArgs e)
