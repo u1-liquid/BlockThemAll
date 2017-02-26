@@ -15,7 +15,7 @@
       <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="AutoSwitchCredApiLimit" Type="System.Boolean" Scope="User">
-      <Value Profile="(Default)">False</Value>
+      <Value Profile="(Default)">True</Value>
     </Setting>
     <Setting Name="MuteUserOnly" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">False</Value>
