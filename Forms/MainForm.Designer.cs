@@ -433,7 +433,6 @@
             // cbAutoSwitchCredApiLimit
             // 
             this.cbAutoSwitchCredApiLimit.AutoSize = true;
-            this.cbAutoSwitchCredApiLimit.Enabled = false;
             this.cbAutoSwitchCredApiLimit.Location = new System.Drawing.Point(252, 49);
             this.cbAutoSwitchCredApiLimit.Name = "cbAutoSwitchCredApiLimit";
             this.cbAutoSwitchCredApiLimit.Size = new System.Drawing.Size(210, 21);
@@ -445,8 +444,6 @@
             // cbAutoRetryApiLimit
             // 
             this.cbAutoRetryApiLimit.AutoSize = true;
-            this.cbAutoRetryApiLimit.Checked = true;
-            this.cbAutoRetryApiLimit.CheckState = System.Windows.Forms.CheckState.Checked;
             this.cbAutoRetryApiLimit.Location = new System.Drawing.Point(252, 21);
             this.cbAutoRetryApiLimit.Name = "cbAutoRetryApiLimit";
             this.cbAutoRetryApiLimit.Size = new System.Drawing.Size(165, 21);
@@ -480,8 +477,6 @@
             // cbKeepFollowing
             // 
             this.cbKeepFollowing.AutoSize = true;
-            this.cbKeepFollowing.Checked = true;
-            this.cbKeepFollowing.CheckState = System.Windows.Forms.CheckState.Checked;
             this.cbKeepFollowing.Location = new System.Drawing.Point(7, 22);
             this.cbKeepFollowing.Name = "cbKeepFollowing";
             this.cbKeepFollowing.Size = new System.Drawing.Size(154, 21);
