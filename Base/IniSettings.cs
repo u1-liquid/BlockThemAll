@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -88,7 +89,7 @@ namespace BlockThemAll.Base
 
         public IEnumerator<KeyValuePair<string, Dictionary<string, object>>> GetEnumerator()
         {
-            foreach (KeyValuePair<string, Dictionary<string, object>> setting in settings)
+            foreach (KeyValuePair<string, Dictionary<string, object>> setting in settings.ToArray())
                 yield return setting;
         }
 
