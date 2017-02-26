@@ -4,6 +4,7 @@ using System.ComponentModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
+using System.Security.Authentication;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -17,8 +18,6 @@ namespace BlockThemAll.Forms
     public partial class MainForm : Form
     {
         public static MainForm Instance { get; private set; }
-        public TwitterApi twitter;
-        public Dictionary<string, TwitterApi> twitters = new Dictionary<string, TwitterApi>();
         public IniSettings settings;
         public HashSet<string> blockDB = new HashSet<string>();
         public HashSet<string> followingDB = new HashSet<string>();
@@ -26,12 +25,20 @@ namespace BlockThemAll.Forms
         private readonly object userdatarefreshlock = new object();
         private readonly object blockdbbuildlock = new object();
         public WorkStatus workStatus = WorkStatus.READY;
+        private TwitterApi loginTemp;
 
         public MainForm()
         {
             Instance = this;
 
             InitializeComponent();
+
+            cbKeepFollowing.Checked = Settings.Default.KeepFollowing;
+            cbKeepFollower.Checked = Settings.Default.KeepFollower;
+            cbSimulateOnly.Checked = Settings.Default.SimulateOnly;
+            cbAutoRetryApiLimit.Checked = Settings.Default.AutoRetryApiLimit;
+            cbAutoSwitchCredApiLimit.Checked = Settings.Default.AutoSwitchCredApiLimit;
+            cbMuteUserOnly.Checked = Settings.Default.MuteUserOnly;
         }
 
         private void aboutToolStripMenuItem_Click(object sender, EventArgs e)
@@ -111,23 +118,22 @@ namespace BlockThemAll.Forms
         private void MainForm_Load(object sender, EventArgs e)
         {
             settings = new IniSettings(new FileInfo("BlockThemAll.ini"));
-            twitter = TwitterApi.Login(settings);
-            SetStatusLabel(twitter.Status.ToString());
-            SetProgressLabel(workStatus.ToString());
+            loginTemp = TwitterApi.Login(settings);
             ProcessTwitterLogin();
+            
+            SetProgressLabel(workStatus.ToString());
 
             foreach (KeyValuePair<string, Dictionary<string, object>> item in settings)
             {
                 if (item.Key.Equals("Authenticate")) continue;
 
-                twitter = TwitterApi.Login(settings, item.Key);
+                loginTemp = TwitterApi.Login(settings, item.Key);
                 ProcessTwitterLogin(item.Key);
             }
 
-            if (!twitters.TryGetValue("Default", out twitter))
-                twitter = twitters.Values.FirstOrDefault();
+            CredentialManager.Instance.SelectCredential("Default");
 
-            if (twitter?.Status == UserStatus.LOGIN_SUCCESS)
+            if (CredentialManager.Instance.Status == UserStatus.LOGIN_SUCCESS)
                 RefreshMyInfo();
         }
 
@@ -162,7 +168,7 @@ namespace BlockThemAll.Forms
 
             if (DialogResult.OK != ofd.ShowDialog(this)) return;
 
-            blockDB.UnionWith(File.ReadAllText(ofd.FileName).Split(new[] {"\r\n", "\n", ","}, StringSplitOptions.RemoveEmptyEntries));
+            lock(blockdbbuildlock) blockDB.UnionWith(File.ReadAllText(ofd.FileName).Split(new[] {"\r\n", "\n", ","}, StringSplitOptions.RemoveEmptyEntries));
             labelknownblocks.Text = blockDB.Count.ToString();
         }
 
@@ -173,7 +179,7 @@ namespace BlockThemAll.Forms
                 CreatePrompt = false,
                 OverwritePrompt = true,
                 RestoreDirectory = true,
-                FileName = $"BlockDB_{twitter?.MyUserInfo?.screen_name}_{DateTime.Now:yyyy-MM-dd_HHmm}.csv"
+                FileName = $"BlockDB_{CredentialManager.Instance.MyUserInfo?.screen_name}_{DateTime.Now:yyyy-MM-dd_HHmm}.csv"
             };
 
             if (DialogResult.OK != sfd.ShowDialog(this)) return;
@@ -188,7 +194,7 @@ namespace BlockThemAll.Forms
 
         private void ProcessTwitterLogin(string SettingsSection = "Authenticate")
         {
-            if (twitter == null) twitter = TwitterApi.Login(settings, SettingsSection);
+            TwitterApi twitter = loginTemp ?? (loginTemp = TwitterApi.Login(settings, SettingsSection));
 
             switch (twitter.Status)
             {
@@ -196,7 +202,7 @@ namespace BlockThemAll.Forms
                     RegisterApiKeyForm rakform = new RegisterApiKeyForm() { TargetSection = SettingsSection };
                     if (DialogResult.OK == rakform.ShowDialog(this))
                     {
-                        twitter = TwitterApi.Login(settings, SettingsSection);
+                        loginTemp = twitter = TwitterApi.Login(settings, SettingsSection);
                         SetStatusLabel(twitter.Status.ToString());
                         ProcessTwitterLogin(SettingsSection);
                     }
@@ -207,33 +213,45 @@ namespace BlockThemAll.Forms
                     ProcessTwitterLogin(SettingsSection);
                     break;
                 case UserStatus.LOGIN_REQUESTED:
-                    LoginProgressForm lpform = new LoginProgressForm();
+                    LoginProgressForm lpform = new LoginProgressForm(twitter);
                     if (DialogResult.OK == lpform.ShowDialog(this))
                     {
-                        twitter = TwitterApi.Login(settings, SettingsSection);
+                        loginTemp = twitter = TwitterApi.Login(settings, SettingsSection);
                         SetStatusLabel(twitter.Status.ToString());
                         ProcessTwitterLogin(SettingsSection);
                     }
                     break;
                 case UserStatus.INVALID_CREDITIONAL:
+                    loginTemp = null;
                     MessageBox.Show(this, @"Unable to access your account! Please try login from menu.", @"Invalid Creditional",
                         MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
                     break;
                 case UserStatus.LOGIN_SUCCESS:
-                    string apikey = SettingsSection.Equals("Authenticate") ? "Default" : SettingsSection;
-                    twitters.Add(apikey, twitter);
-                    manageAPIKeysToolStripMenuItem.DropDownItems.Add(new ToolStripMenuItem(apikey) { Name = apikey });
-                    removeAPIKeyToolStripMenuItem.DropDownItems.Add(new ToolStripMenuItem(apikey) { Name = apikey });
+                    try
+                    {
+                        loginTemp = null;
+                        string apikey = SettingsSection.Equals("Authenticate") ? "Default" : SettingsSection;
+                        CredentialManager.Instance.AddCredential(apikey, twitter);
+                        manageAPIKeysToolStripMenuItem.DropDownItems.Add(new ToolStripMenuItem(apikey) { Name = apikey });
+                        removeAPIKeyToolStripMenuItem.DropDownItems.Add(new ToolStripMenuItem(apikey) { Name = apikey });
 
-                    loginToolStripMenuItem.Enabled = false;
-                    loginToolStripMenuItem.Text = @"Logged in as " + twitter.MyUserInfo.screen_name;
+                        loginToolStripMenuItem.Enabled = false;
+                        loginToolStripMenuItem.Text = @"Logged in as " + twitter.MyUserInfo.screen_name;
+                    }
+                    catch (InvalidCredentialException e)
+                    {
+                        settings.DeleteSection(SettingsSection);
+                        settings.Save();
+
+                        MessageBox.Show(this, e.Message, @"Invalid Creditional", MessageBoxButtons.OK, MessageBoxIcon.Exclamation);
+                    }
                     break;
             }
         }
 
         private void manageAPIKeysToolStripMenuItem_DropDownOpening(object sender, EventArgs e)
         {
-            string current = twitters.FirstOrDefault(x => ReferenceEquals(x.Value, twitter)).Key;
+            string current = CredentialManager.Instance.Credentials.FirstOrDefault(x => ReferenceEquals(x.Value, CredentialManager.Instance.Current)).Key;
             foreach (object dropDownItem in manageAPIKeysToolStripMenuItem.DropDownItems)
             {
                 ToolStripMenuItem item = dropDownItem as ToolStripMenuItem;
@@ -244,8 +262,8 @@ namespace BlockThemAll.Forms
         private void manageAPIKeysToolStripMenuItem_DropDownItemClicked(object sender, ToolStripItemClickedEventArgs e)
         {
             if (e.ClickedItem.GetType() != typeof(ToolStripMenuItem) || e.ClickedItem == registerAPIKeyToolStripMenuItem || e.ClickedItem == removeAPIKeyToolStripMenuItem) return;
-            
-            twitter = twitters[e.ClickedItem.Text];
+
+            CredentialManager.Instance.SelectCredential(e.ClickedItem.Text);
             foreach (object dropDownItem in manageAPIKeysToolStripMenuItem.DropDownItems)
             {
                 ToolStripMenuItem item = dropDownItem as ToolStripMenuItem;
@@ -261,16 +279,18 @@ namespace BlockThemAll.Forms
                     MessageBox.Show(this, @"Do you want to change default API key?", @"Change key", MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question))
                 {
-                    twitters.Remove("Default");
+                    CredentialManager.Instance.RemoveCredential("Default");
                     settings.DeleteSection("Authenticate");
                     manageAPIKeysToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
                     removeAPIKeyToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
 
-                    twitter = TwitterApi.Login(settings);
-                    SetStatusLabel(twitter.Status.ToString());
+                    loginTemp = TwitterApi.Login(settings);
                     ProcessTwitterLogin();
+                    
+                    CredentialManager.Instance.SelectCredential("Default");
 
-                    if (!twitters.ContainsValue(twitter)) twitter = twitters.FirstOrDefault().Value;
+                    if (CredentialManager.Instance.Status == UserStatus.LOGIN_SUCCESS)
+                        RefreshMyInfo();
                 }
             }
             else
@@ -279,16 +299,19 @@ namespace BlockThemAll.Forms
                     MessageBox.Show(this, @"Do you want to remove " + e.ClickedItem.Text + @" API key?", @"Remove key", MessageBoxButtons.YesNo,
                         MessageBoxIcon.Question))
                 {
-                    TwitterApi target = twitters[e.ClickedItem.Text];
-                    twitters.Remove(e.ClickedItem.Text);
-                    if (ReferenceEquals(twitter, target)) twitter = twitters.FirstOrDefault().Value;
+                    TwitterApi target = CredentialManager.Instance.Credentials[e.ClickedItem.Text];
+                    CredentialManager.Instance.RemoveCredential(e.ClickedItem.Text);
+
+                    if (ReferenceEquals(CredentialManager.Instance.Current, target))
+                        CredentialManager.Instance.SelectCredential("Default");
+
                     settings.DeleteSection(e.ClickedItem.Text);
                     manageAPIKeysToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
                     removeAPIKeyToolStripMenuItem.DropDownItems.RemoveByKey(e.ClickedItem.Text);
                 }
             }
 
-            if (twitters.Count == 0 || !twitters.ContainsKey("Default"))
+            if (CredentialManager.Instance.Credentials.Count == 0 || !CredentialManager.Instance.Credentials.ContainsKey("Default"))
             {
                 loginToolStripMenuItem.Enabled = true;
                 loginToolStripMenuItem.Text = @"Login";
@@ -302,8 +325,7 @@ namespace BlockThemAll.Forms
             RegisterApiKeyForm rakform = new RegisterApiKeyForm() { TargetSection = string.Empty };
             if (DialogResult.OK == rakform.ShowDialog(this))
             {
-                twitter = TwitterApi.Login(settings, rakform.TargetSection);
-                SetStatusLabel(twitter.Status.ToString());
+                loginTemp = TwitterApi.Login(settings, rakform.TargetSection);
                 ProcessTwitterLogin(rakform.TargetSection);
             }
         }
@@ -324,13 +346,13 @@ namespace BlockThemAll.Forms
                     while(true)
                         try
                         {
-                            result = twitter.getMyFriends(cursor);
+                            result = CredentialManager.Instance.getMyFriends(cursor);
                             while (result != null)
                             {
                                 followingDB.UnionWith(result.ids);
                                 if (result.next_cursor == 0)
                                     break;
-                                result = twitter.getMyFriends(cursor = result.next_cursor_str);
+                                result = CredentialManager.Instance.getMyFriends(cursor = result.next_cursor_str);
                             }
 
                             break;
@@ -344,13 +366,13 @@ namespace BlockThemAll.Forms
                     while(true)
                         try
                         {
-                            result = twitter.getMyFollowers(cursor);
+                            result = CredentialManager.Instance.getMyFollowers(cursor);
                             while (result != null)
                             {
                                 followerDB.UnionWith(result.ids);
                                 if (result.next_cursor == 0)
                                     break;
-                                result = twitter.getMyFollowers(cursor = result.next_cursor_str);
+                                result = CredentialManager.Instance.getMyFollowers(cursor = result.next_cursor_str);
                             }
 
                             break;
@@ -362,7 +384,7 @@ namespace BlockThemAll.Forms
 
                     Action action = () =>
                     {
-                        labelusername.Text = @"@" + twitter.MyUserInfo.screen_name + @" / " + twitter.MyUserInfo.id_str;
+                        labelusername.Text = @"@" + CredentialManager.Instance.MyUserInfo.screen_name + @" / " + CredentialManager.Instance.MyUserInfo.id_str;
                         labelfollowings.Text = followingDB.Count.ToString();
                         labelfollowers.Text = followerDB.Count.ToString();
                         labellastupdate.Text = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
@@ -401,14 +423,14 @@ namespace BlockThemAll.Forms
                     while (true)
                         try
                         {
-                            UserIdsObject result = twitter.getMyBlockList(cursor);
+                            UserIdsObject result = CredentialManager.Instance.getMyBlockList(cursor);
                             while (result != null)
                             {
                                 blockDB.UnionWith(result.ids);
                                 BeginInvoke(knownblocksupdateaction);
                                 if (result.next_cursor == 0)
                                     break;
-                                result = twitter.getMyBlockList(cursor = result.next_cursor_str);
+                                result = CredentialManager.Instance.getMyBlockList(cursor = result.next_cursor_str);
                             }
                             break;
                         }
@@ -519,6 +541,7 @@ namespace BlockThemAll.Forms
                     Settings.Default.MuteUserOnly = cbMuteUserOnly.Checked;
                     break;
             }
+            Settings.Default.Save();
         }
         
         private void skipThisToolStripMenuItem_Click(object sender, EventArgs e)

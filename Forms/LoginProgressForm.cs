@@ -1,14 +1,19 @@
 ﻿using System;
 using System.Windows.Forms;
+using BlockThemAll.Twitter;
 
 namespace BlockThemAll.Forms
 {
     public partial class LoginProgressForm : Form
     {
-        private readonly string authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + MainForm.Instance.twitter.OAuth.User.Token;
+        private TwitterApi Login;
+        private readonly string authorizationUrlString;
 
-        public LoginProgressForm()
+        public LoginProgressForm(TwitterApi login)
         {
+            Login = login;
+            authorizationUrlString = "https://api.twitter.com/oauth/authorize?oauth_token=" + login.OAuth.User.Token;
+
             InitializeComponent();
         }
 
@@ -22,7 +27,7 @@ namespace BlockThemAll.Forms
             TextInputForm tiform = new TextInputForm();
             if (DialogResult.OK == tiform.ShowDialog(this))
             {
-                MainForm.Instance.twitter.Authenticate(tiform.UserText.Trim());
+                Login.Authenticate(tiform.UserText.Trim());
                 DialogResult = DialogResult.OK;
                 Close();
             }
@@ -39,7 +44,7 @@ namespace BlockThemAll.Forms
             if (collection == null || collection.Count != 1) return;
 
             HtmlElement pincode = collection[0];
-            MainForm.Instance.twitter.Authenticate(pincode.InnerText.Trim());
+            Login.Authenticate(pincode.InnerText.Trim());
             DialogResult = DialogResult.OK;
             Close();
         }
