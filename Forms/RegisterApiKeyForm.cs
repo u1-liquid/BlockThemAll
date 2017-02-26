@@ -34,14 +34,6 @@ namespace BlockThemAll.Forms
                 "iAtYJ4HpUVfIUoNnif1DA",
                 "172fOpzuZoYzNYaU3mMYvE8m8MEyLbztOdbrUolU"
             ), new Tuple<string, string, string>(
-                "Tweetbot for iOS",
-                "8AeR93em84Pyum5i1QGA",
-                "ugCImRuw376Y9t9apIq6bgWGNbb1ymBrx2K5NK0ZI"
-            ), new Tuple<string, string, string>(
-                "HootSuite",
-                "w1Gybt9LP9zG46mS1X3UAw",
-                "hRIK4RWjAO4pokQCvmNCynRAY8Jc8edV1kcV2go6g"
-            ), new Tuple<string, string, string>(
                 "Instagram",
                 "7YBPrscvh0RIThrWYVeGg",
                 "sMO1vDyJ9A0xfOE6RyWNjhTUS1sNqsa7Ae14gOZnw"
