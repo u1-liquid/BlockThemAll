@@ -19,13 +19,19 @@ namespace BlockThemAll.Forms
     {
         public static MainForm Instance { get; private set; }
         public IniSettings settings;
-        public HashSet<string> blockDB = new HashSet<string>();
-        public HashSet<string> followingDB = new HashSet<string>();
-        public HashSet<string> followerDB = new HashSet<string>();
+        public ThreadSafeHashSet<string> blockDB = new ThreadSafeHashSet<string>();
+        public ThreadSafeHashSet<string> WhiteList = new ThreadSafeHashSet<string>();
+        private readonly ThreadSafeHashSet<string> followingDB = new ThreadSafeHashSet<string>();
+        private readonly ThreadSafeHashSet<string> followerDB = new ThreadSafeHashSet<string>();
+        private readonly ThreadSafeHashSet<string> UserDefinedDB = new ThreadSafeHashSet<string>();
         private readonly object userdatarefreshlock = new object();
         private readonly object blockdbbuildlock = new object();
         public WorkStatus workStatus = WorkStatus.READY;
         private TwitterApi loginTemp;
+
+        private readonly TreeNode tnFollowings;
+        private readonly TreeNode tnFollowers;
+        private readonly TreeNode tnUserDefined;
 
         public MainForm()
         {
@@ -33,8 +39,14 @@ namespace BlockThemAll.Forms
 
             InitializeComponent();
 
+            tnFollowings = treeView2.Nodes["Followings"];
+            tnFollowers = treeView2.Nodes["Followers"];
+            tnUserDefined = treeView2.Nodes["UserDefined"];
+            
             cbKeepFollowing.Checked = Settings.Default.KeepFollowing;
+            tnFollowings.Checked = Settings.Default.KeepFollowing;
             cbKeepFollower.Checked = Settings.Default.KeepFollower;
+            tnFollowers.Checked = Settings.Default.KeepFollower;
             cbSimulateOnly.Checked = Settings.Default.SimulateOnly;
             cbAutoRetryApiLimit.Checked = Settings.Default.AutoRetryApiLimit;
             cbAutoSwitchCredApiLimit.Checked = Settings.Default.AutoSwitchCredApiLimit;
@@ -523,9 +535,11 @@ namespace BlockThemAll.Forms
             switch (cb?.Name)
             {
                 case "cbKeepFollowing":
+                    tnFollowings.Checked = cbKeepFollowing.Checked;
                     Settings.Default.KeepFollowing = cbKeepFollowing.Checked;
                     break;
                 case "cbKeepFollower":
+                    tnFollowers.Checked = cbKeepFollower.Checked;
                     Settings.Default.KeepFollower = cbKeepFollower.Checked;
                     break;
                 case "cbSimulateOnly":
@@ -605,6 +619,65 @@ namespace BlockThemAll.Forms
         private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
 
+        }
+
+        private void GenerateWhiteList()
+        {
+            WhiteList.EnterWriteLock();
+            WhiteList.UnSafeClear();
+            if (Settings.Default.KeepFollowing)
+                WhiteList.UnionWith(followingDB);
+            if (Settings.Default.KeepFollower)
+                WhiteList.UnionWith(followerDB);
+            if (tnUserDefined.Checked)
+                WhiteList.UnionWith(UserDefinedDB);
+            WhiteList.ExitWriteLock();
+        }
+
+        private void treeView2_AfterCheck(object sender, TreeViewEventArgs e)
+        {
+            switch (e.Node.Name)
+            {
+                case "Followings":
+                    cbKeepFollowing.Checked = tnFollowings.Checked;
+                    break;
+                case "Followers":
+                    cbKeepFollower.Checked = tnFollowers.Checked;
+                    break;
+                case "UserDefined":
+                    break;
+                default:
+                    if (e.Node.Parent.Name == "UserDefined")
+                    {
+                        if (e.Node.Checked)
+                            UserDefinedDB.Add(e.Node.Name);
+                        else
+                            UserDefinedDB.Remove(e.Node.Name);
+                    }
+                    break;
+            }
+            GenerateWhiteList();
+        }
+
+        private void treeView2_BeforeExpand(object sender, TreeViewCancelEventArgs e)
+        {
+           
+        }
+
+        private void contextMenuStrip2_Opening(object sender, CancelEventArgs e)
+        {
+            try
+            {
+                TreeViewHitTestInfo hitTest = treeView2.HitTest(treeView2.PointToClient(new Point(contextMenuStrip2.Left, contextMenuStrip2.Top)));
+                TreeNode tn = hitTest.Node;
+                if (tn == null) return;
+
+                deleteToolStripMenuItem.Enabled = tn != tnUserDefined;
+            }
+            catch
+            {
+                // ignore
+            }
         }
     }
 }

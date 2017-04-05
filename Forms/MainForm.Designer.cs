@@ -34,7 +34,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
             System.Windows.Forms.TreeNode treeNode1 = new System.Windows.Forms.TreeNode("Followings");
             System.Windows.Forms.TreeNode treeNode2 = new System.Windows.Forms.TreeNode("Followers");
-            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("UserDefined");
+            System.Windows.Forms.TreeNode treeNode3 = new System.Windows.Forms.TreeNode("User Defined");
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.loadTargetsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -373,14 +373,17 @@
             treeNode1.Text = "Followings";
             treeNode2.Name = "Followers";
             treeNode2.Text = "Followers";
+            treeNode3.ContextMenuStrip = this.contextMenuStrip2;
             treeNode3.Name = "UserDefined";
-            treeNode3.Text = "UserDefined";
+            treeNode3.Text = "User Defined";
             this.treeView2.Nodes.AddRange(new System.Windows.Forms.TreeNode[] {
             treeNode1,
             treeNode2,
             treeNode3});
             this.treeView2.Size = new System.Drawing.Size(939, 386);
             this.treeView2.TabIndex = 0;
+            this.treeView2.AfterCheck += new System.Windows.Forms.TreeViewEventHandler(this.treeView2_AfterCheck);
+            this.treeView2.BeforeExpand += new System.Windows.Forms.TreeViewCancelEventHandler(this.treeView2_BeforeExpand);
             // 
             // tabPage4
             // 
@@ -632,12 +635,12 @@
             this.contextMenuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.skipThisToolStripMenuItem});
             this.contextMenuStrip1.Name = "contextMenuStrip1";
-            this.contextMenuStrip1.Size = new System.Drawing.Size(140, 30);
+            this.contextMenuStrip1.Size = new System.Drawing.Size(134, 28);
             // 
             // skipThisToolStripMenuItem
             // 
             this.skipThisToolStripMenuItem.Name = "skipThisToolStripMenuItem";
-            this.skipThisToolStripMenuItem.Size = new System.Drawing.Size(139, 26);
+            this.skipThisToolStripMenuItem.Size = new System.Drawing.Size(133, 24);
             this.skipThisToolStripMenuItem.Text = "Skip this";
             this.skipThisToolStripMenuItem.Click += new System.EventHandler(this.skipThisToolStripMenuItem_Click);
             // 
@@ -656,29 +659,30 @@
             this.toolStripSeparator2,
             this.importFromListToolStripMenuItem});
             this.contextMenuStrip2.Name = "contextMenuStrip2";
-            this.contextMenuStrip2.Size = new System.Drawing.Size(192, 88);
+            this.contextMenuStrip2.Size = new System.Drawing.Size(186, 110);
+            this.contextMenuStrip2.Opening += new System.ComponentModel.CancelEventHandler(this.contextMenuStrip2_Opening);
             // 
             // addToolStripMenuItem
             // 
             this.addToolStripMenuItem.Name = "addToolStripMenuItem";
-            this.addToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
+            this.addToolStripMenuItem.Size = new System.Drawing.Size(185, 24);
             this.addToolStripMenuItem.Text = "Add";
             // 
             // deleteToolStripMenuItem
             // 
             this.deleteToolStripMenuItem.Name = "deleteToolStripMenuItem";
-            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
+            this.deleteToolStripMenuItem.Size = new System.Drawing.Size(185, 24);
             this.deleteToolStripMenuItem.Text = "Delete";
             // 
             // toolStripSeparator2
             // 
             this.toolStripSeparator2.Name = "toolStripSeparator2";
-            this.toolStripSeparator2.Size = new System.Drawing.Size(188, 6);
+            this.toolStripSeparator2.Size = new System.Drawing.Size(182, 6);
             // 
             // importFromListToolStripMenuItem
             // 
             this.importFromListToolStripMenuItem.Name = "importFromListToolStripMenuItem";
-            this.importFromListToolStripMenuItem.Size = new System.Drawing.Size(191, 26);
+            this.importFromListToolStripMenuItem.Size = new System.Drawing.Size(185, 24);
             this.importFromListToolStripMenuItem.Text = "Import from List";
             // 
             // MainForm
